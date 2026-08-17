@@ -8,7 +8,7 @@
  */
 
 // Version hochzählen, wenn sich Dateien ändern — dadurch wird der alte Cache verworfen.
-const CACHE = 'ferratafit-v4';
+const CACHE = 'ferratafit-v5';
 const ASSETS = [
   './',
   './index.html',

@@ -30,7 +30,12 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun ProgressScreen(state: AppState, earnedBadgeIds: Set<String>) {
+fun ProgressScreen(
+    state: AppState,
+    earnedBadgeIds: Set<String>,
+    bodySyncing: Boolean,
+    onSyncBody: () -> Unit
+) {
     val now = System.currentTimeMillis()
     val sessions = state.sessions
     val meters = Journey.totalMeters(state.progress)
@@ -63,6 +68,10 @@ fun ProgressScreen(state: AppState, earnedBadgeIds: Set<String>) {
                 )
             }
         }
+
+        // ---------- Körperdaten von der Waage ----------
+        item { SectionTitle("Körper") }
+        item { BodyCard(state = state, syncing = bodySyncing, onSync = onSyncBody) }
 
         // ---------- Höhenmeter und Gipfel ----------
         item {

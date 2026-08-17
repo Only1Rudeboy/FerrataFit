@@ -10,7 +10,7 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 <div align="center">
 
-[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.3" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
+[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.4" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
 
 </div>
 
@@ -23,9 +23,9 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   — im Browser öffnen und über „App installieren" bzw. „Zum Home-Bildschirm hinzufügen"
   wie eine App verwenden. Läuft dank Service Worker auch ohne Netz.
 
-| Heute | Anleitung | Dehnen | Fortschritt |
+| Heute | Anleitung | Dehnen | Körper |
 |---|---|---|---|
-| ![Startbildschirm](docs/screenshots/heute.png) | ![Übungsanleitung](docs/screenshots/anleitung.png) | ![Dehn-Etappe](docs/screenshots/dehnen.png) | ![Fortschritt](docs/screenshots/fortschritt.png) |
+| ![Startbildschirm](docs/screenshots/heute.png) | ![Übungsanleitung](docs/screenshots/anleitung.png) | ![Dehn-Etappe](docs/screenshots/dehnen.png) | ![Körperdaten](docs/screenshots/koerper.png) |
 
 ## ✨ Funktionen
 
@@ -33,6 +33,8 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   wird die nächste frei
 - **Aktualisierung in der App** — prüft auf neue Fassungen, lädt sie herunter und
   installiert sie. Kein Play Store nötig
+- **Waagendaten** — Gewicht und Körperzusammensetzung kommen automatisch von der
+  vernetzten Waage; die App rechnet aus, was das fürs Ziehen am Fels bedeutet
 - **Vollständige Anleitung zu jeder Übung** — Aufbau, nummerierter Ablauf, typische
   Fehler, Zählweise, leichtere und schwerere Varianten. Dazu ein Videoverweis, falls
   Text allein nicht reicht
@@ -128,6 +130,32 @@ verlassen das Gerät nicht.
 Die Web-Variante frischt sich beim Öffnen von selbst auf; unter **Mehr** gibt es zusätzlich
 eine Schaltfläche, die den Zwischenspeicher leert und neu lädt.
 
+## ⚖️ Waage
+
+Steht deine Waage über **FitDays** mit Samsung Health in Verbindung, holt die App Gewicht
+und Körperzusammensetzung automatisch. Die Kette lautet:
+
+```
+FitDays → Samsung Health → Health Connect → FerrataFit
+```
+
+Beides muss einmalig eingeschaltet werden: in FitDays der Abgleich mit Samsung Health,
+in Samsung Health der mit Health Connect. Danach genügt es, sich auf die Waage zu stellen —
+die App holt die Werte beim nächsten Öffnen.
+
+Übernommen werden Gewicht, Körperfettanteil, Magermasse, Wasser- und Knochenanteil sowie
+der Grundumsatz, sofern deine Waage sie liefert. Das Körpergewicht wandert ins Profil und
+verbessert damit die Lastschätzungen.
+
+**Was daraus gerechnet wird:** Am Steig zählt nicht das Gewicht allein, sondern das
+Verhältnis von Kraft zu Last. Ein Klimmzug bei 74 kg ist eine andere Übung als bei 78 kg.
+Die App zeigt deshalb, wie viel Körpergewicht du je Wiederholung bewegst und was eine
+Veränderung ungefähr an zusätzlichen Wiederholungen bedeutet. Sie ordnet nur ein, was
+gemessen wurde — Zielgewichte gibt sie keine vor.
+
+Die Web-Variante hat keinen Zugang zu Health Connect; dort trägt man das Gewicht von Hand
+ein, die Auswertung darunter ist dieselbe.
+
 ## ⌚ Samsung Health
 
 Samsung bietet ein eigenes SDK an, das aber eine Partnerfreigabe voraussetzt und für
@@ -165,14 +193,14 @@ Service Worker für den Offline-Betrieb. Veröffentlicht über GitHub Pages dire
 diesem Repository; lokal genügt `cd web && python3 -m http.server 8765`.
 
 Beide Varianten teilen dieselbe Trainings- und Etappenlogik. Damit sie nicht
-auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **93 Prüfungen insgesamt**:
+auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **114 Prüfungen insgesamt**:
 
 ```bash
 node web/test-progression.mjs    # 13 Prüfungen: Gewichtssteigerung
-node web/test-journey.mjs        # 34 Prüfungen: Etappen, Höhenmeter, Abzeichen, Anleitungen
+node web/test-journey.mjs        # 44 Prüfungen: Etappen, Höhenmeter, Abzeichen, Anleitungen, Körper
 ```
 
-Für die Android-Seite (46 Prüfungen):
+Für die Android-Seite (60 Prüfungen):
 
 ```bash
 cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
@@ -193,13 +221,13 @@ FerrataFit/
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
 │   ├── app/src/main/java/…/update/   Selbstaktualisierung über GitHub
-│   ├── app/src/test/                 46 Tests
+│   ├── app/src/test/                 60 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
 │   ├── exercises.js                  Übungskatalog mit Ausführungsanleitungen
 │   ├── data.js                       Split und Progression
 │   ├── journey.js                    Etappen, Dehnkatalog, Höhenmeter, Abzeichen
-│   └── test-*.mjs                    47 Tests
+│   └── test-*.mjs                    57 Tests
 └── docs/             Trainingswissen und Screenshots
 ```
 

@@ -505,3 +505,81 @@ export function completionLine(kind) {
   const pool = lines[kind] || lines[STAGE_KIND.STRENGTH];
   return pool[Math.floor(Math.random() * pool.length)];
 }
+
+// ---------------------------------------------------------------------------
+// Körperdaten
+// ---------------------------------------------------------------------------
+
+/**
+ * Auswertungen rund um die Waage.
+ *
+ * Die Android-App bezieht die Werte über Health Connect (Kette FitDays → Samsung
+ * Health → Health Connect). Im Browser gibt es diesen Zugang nicht, dort trägt man
+ * das Gewicht von Hand ein — die Auswertung darunter ist dieselbe.
+ *
+ * Für den Klettersteig zählt nicht das Gewicht allein, sondern das Verhältnis von
+ * Kraft zu Last: Ein Klimmzug bei 74 kg ist eine andere Übung als bei 78 kg.
+ */
+const BODY_DAY_MS = 86400000;
+
+export const Body = {
+  latest(list) {
+    if (!list || !list.length) return null;
+    return list.reduce((a, b) => (b.at > a.at ? b : a));
+  },
+
+  /** Die letzte Messung, die mindestens `days` Tage zurückliegt. */
+  reference(list, now, days = 30) {
+    if (!list || !list.length) return null;
+    const cutoff = now - days * BODY_DAY_MS;
+    const older = list.filter((x) => x.at <= cutoff);
+    if (older.length) return older.reduce((a, b) => (b.at > a.at ? b : a));
+    const oldest = list.reduce((a, b) => (b.at < a.at ? b : a));
+    return oldest.at !== Body.latest(list).at ? oldest : null;
+  },
+
+  weightTrend(list, now, days = 30) {
+    const latest = Body.latest(list);
+    const ref = Body.reference(list, now, days);
+    if (!latest || !ref || ref.at === latest.at) return null;
+    return latest.weightKg - ref.weightKg;
+  },
+
+  /** Bewegtes Körpergewicht je Klimmzug — je kleiner, desto leichter fällt er. */
+  pullupLoadPerRep(bodyweightKg, bestPullups) {
+    return bestPullups > 0 ? bodyweightKg / bestPullups : null;
+  },
+
+  /** Wie viele Klimmzüge entspräche die Gewichtsveränderung ungefähr? */
+  pullupEquivalent(deltaKg) {
+    return -deltaKg / 3;
+  },
+
+  bodyFatLabel(percent) {
+    if (percent < 8) return 'sehr niedrig';
+    if (percent < 14) return 'athletisch';
+    if (percent < 20) return 'im mittleren Bereich';
+    if (percent < 26) return 'leicht darüber';
+    return 'erhöht';
+  },
+
+  bmi(weightKg, heightCm) {
+    if (!heightCm || heightCm < 100) return null;
+    const m = heightCm / 100;
+    return Math.round((weightKg / (m * m)) * 10) / 10;
+  },
+
+  freshnessLabel(at, now) {
+    const days = Math.floor((now - at) / BODY_DAY_MS);
+    if (days <= 0) return 'heute gemessen';
+    if (days === 1) return 'gestern gemessen';
+    if (days < 7) return `vor ${days} Tagen gemessen`;
+    if (days < 14) return 'vor einer Woche gemessen';
+    if (days < 60) return `vor ${Math.floor(days / 7)} Wochen gemessen`;
+    return `vor ${Math.floor(days / 30)} Monaten gemessen`;
+  },
+
+  isFresh(at, now, maxDays = 30) {
+    return (now - at) <= maxDays * BODY_DAY_MS;
+  },
+};

@@ -10,7 +10,7 @@ import * as D from './data.js';
 import * as J from './journey.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
-const APP_VERSION = '1.3';
+const APP_VERSION = '1.4';
 
 const DEFAULT_STATE = {
   profile: {
@@ -29,6 +29,9 @@ const DEFAULT_STATE = {
   progress: [],
   /** Bereits vergebene Abzeichen — gemerkt, damit neue erkennbar bleiben. */
   seenBadges: [],
+  /** Messungen von der Waage. Im Browser von Hand eingetragen. */
+  body: [],
+  heightCm: null,
 };
 
 let state = load();
@@ -728,6 +731,7 @@ function viewProgress() {
   if (!sessions.length) {
     return `<div class="screen"><h1>Fortschritt</h1>
       <p class="sub">${state.progress.length ? `${state.progress.filter((x) => !x.skipped).length} Etappen gegangen` : 'Hier wird es spannend, sobald die erste Etappe steht.'}</p>
+      ${bodySection()}
       ${metersHtml}
       ${badgesHtml}
       <div class="empty">Nach der ersten Krafteinheit erscheinen hier auch deine Kurven,
@@ -767,6 +771,7 @@ function viewProgress() {
     <h1>Fortschritt</h1>
     <p class="sub">${state.progress.filter((x) => !x.skipped).length} Etappen · ${sessions.length} Einheiten · ${totalVol} kg bewegt</p>
 
+    ${bodySection()}
     ${metersHtml}
     ${badgesHtml}
 
@@ -820,6 +825,68 @@ function viewProgress() {
       </div>
     </div>
   </div>`;
+}
+
+
+/**
+ * Körperdaten. Die Android-App holt sie über Health Connect von der Waage
+ * (Kette FitDays → Samsung Health → Health Connect); im Browser gibt es diesen
+ * Zugang nicht, dort trägt man das Gewicht von Hand ein.
+ */
+function bodySection() {
+  const now = Date.now();
+  const latest = J.Body.latest(state.body);
+  const trend = J.Body.weightTrend(state.body, now);
+  const bestPullup = D.bestOf(state.sessions, 'pullup', 'reps');
+
+  const compo = [];
+  if (latest) {
+    if (latest.bodyFatPercent != null) {
+      compo.push(['Körperfett', `${Math.round(latest.bodyFatPercent * 10) / 10} %`,
+        J.Body.bodyFatLabel(latest.bodyFatPercent)]);
+    }
+    const bmi = J.Body.bmi(latest.weightKg, state.heightCm);
+    if (bmi) compo.push(['BMI', `${bmi}`, '']);
+  }
+
+  return `
+    <div class="section-title"><span>Körper</span></div>
+    <div class="card ${latest ? 'accent-violet' : ''}">
+      ${latest ? `
+        <div class="row" style="align-items:flex-end;gap:12px">
+          <span style="font-size:30px;font-weight:700;letter-spacing:-1px">${D.fmtKg(latest.weightKg)}</span>
+          ${trend != null && Math.abs(trend) >= 0.1 ? `
+            <span class="pill ${trend < 0 ? 'emerald' : ''}" style="margin-bottom:6px">
+              ${trend < 0 ? '' : '+'}${Math.round(trend * 10) / 10} kg / Monat</span>` : ''}
+        </div>
+        <div class="dim" style="font-size:12px;margin-top:4px">${esc(J.Body.freshnessLabel(latest.at, now))}</div>
+        ${compo.length ? `<div class="tiles" style="grid-template-columns:repeat(${compo.length},1fr);margin-top:14px">
+          ${compo.map(([l, v, h]) => `<div class="tile"><div class="val" style="font-size:19px">${esc(v)}</div>
+            <div class="lbl">${esc(l)}</div>${h ? `<div class="lbl" style="color:var(--violet)">${esc(h)}</div>` : ''}</div>`).join('')}
+        </div>` : ''}
+        ${bestPullup > 0 ? `<div class="info-block" style="margin-top:14px">
+          <div class="h">Am Steig bedeutet das</div>
+          <div class="b">Bei ${bestPullup} Klimmzügen bewegst du gerade
+            ${D.fmtKg(J.Body.pullupLoadPerRep(latest.weightKg, bestPullup))} je Wiederholung.${
+              trend != null && trend < -0.4
+                ? ` Du bist ${D.fmtKg(Math.abs(trend))} leichter als vor einem Monat — das entspricht
+                    bei gleicher Kraft grob ${Math.round(J.Body.pullupEquivalent(trend) * 10) / 10}
+                    zusätzlichen Wiederholungen.`
+                : ' Jedes Kilo weniger macht dieselbe Leistung leichter.'}</div>
+        </div>` : ''}
+        ${state.body.length >= 2 ? `<div style="margin-top:14px">${
+          chartSvg(state.body.slice(-30).map((b) => ({ at: b.at, value: b.weightKg, label: D.fmtKg(b.weightKg) })),
+            'var(--violet)')}</div>` : ''}
+      ` : `<p class="muted" style="font-size:13.5px;margin-top:0">Noch kein Gewicht eingetragen.
+             Die Android-App holt es automatisch von deiner Waage — hier im Browser trägst du
+             es von Hand ein.</p>`}
+      <div class="row" style="gap:8px;margin-top:14px">
+        <input type="number" inputmode="decimal" id="body-weight" placeholder="Gewicht in kg"
+          style="flex:1;background:var(--surface-high);border:1px solid var(--outline);
+                 border-radius:13px;padding:12px 14px;color:var(--text-high);outline:none">
+        <button class="btn ghost small" id="body-add" style="width:auto;padding:0 18px">Eintragen</button>
+      </div>
+    </div>`;
 }
 
 function keyMetric(name, value, goal, progress, tone) {
@@ -1387,6 +1454,22 @@ function bindSettings() {
   };
   const tg = $('#set-target');
   if (tg) tg.onchange = () => update((s) => { s.profile.targetFerrataName = tg.value; });
+
+  const ba = $('#body-add');
+  if (ba) ba.onclick = () => {
+    const input = $('#body-weight');
+    const kg = parseFloat((input?.value || '').replace(',', '.'));
+    if (!kg || kg < 25 || kg > 300) {
+      toast('Bitte ein Gewicht zwischen 25 und 300 kg eintragen.', true);
+      return;
+    }
+    update((s) => {
+      s.body = [...s.body.filter((b) => new Date(b.at).toDateString() !== new Date().toDateString()),
+                { at: Date.now(), weightKg: kg }].sort((a, b) => a.at - b.at);
+      s.profile.bodyweightKg = kg;
+    });
+    toast(`${kg} kg eingetragen — die Lastschätzungen rechnen ab jetzt damit.`);
+  };
 
   const cu = $('#check-update');
   if (cu) cu.onclick = async () => {

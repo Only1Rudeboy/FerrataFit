@@ -165,5 +165,50 @@ check('Videosuchen sind nicht leer und nennen die Übung', (() => {
   return all.filter((e) => !e.video || e.video.trim().length < 8).map((e) => e.id);
 })(), []);
 
+// --- Körperdaten ---
+const DAY = 86400000;
+const nowB = 1_700_000_000_000;
+const bm = (daysAgo, kg, fat) => ({ at: nowB - daysAgo * DAY, weightKg: kg, bodyFatPercent: fat });
+
+check('neueste Messung wird gefunden',
+  J.Body.latest([bm(30, 80), bm(1, 78), bm(15, 79)]).weightKg, 78);
+
+check('ohne Messungen gibt es nichts zu melden',
+  [J.Body.latest([]), J.Body.weightTrend([], nowB)], [null, null]);
+
+check('Trend vergleicht mit der Messung vor einem Monat',
+  J.Body.weightTrend([bm(35, 80), bm(20, 79), bm(1, 77.5)], nowB, 30), -2.5);
+
+check('eine einzelne Messung ergibt keinen Trend',
+  J.Body.weightTrend([bm(1, 78)], nowB), null);
+
+check('Last je Klimmzug sinkt mit dem Koerpergewicht',
+  [J.Body.pullupLoadPerRep(80, 5), J.Body.pullupLoadPerRep(80, 0)], [16, null]);
+
+check('Gewichtsverlust wird in Wiederholungen umgerechnet',
+  J.Body.pullupEquivalent(-3), 1);
+
+check('BMI braucht eine plausible Groesse',
+  [J.Body.bmi(78, 179.5), J.Body.bmi(78, null), J.Body.bmi(78, 40)], [24.2, null, null]);
+
+check('frische Messungen werden von alten unterschieden',
+  [J.Body.isFresh(nowB - 5 * DAY, nowB), J.Body.isFresh(nowB - 45 * DAY, nowB)], [true, false]);
+
+check('Koerperfett wird ohne Zielvorgabe eingeordnet', (() => {
+  const labels = [5, 12, 18, 24, 30].map((x) => J.Body.bodyFatLabel(x));
+  return labels.filter((l) => /sollte|Ziel|abnehmen/i.test(l));
+})(), []);
+
+check('Android und Web rechnen gleich', (() => {
+  // Dieselben Faelle wie in BodyTest.kt — Abweichungen faenden hier auf
+  const list = [bm(35, 80), bm(1, 77.5)];
+  return [
+    J.Body.weightTrend(list, nowB, 30),
+    J.Body.pullupLoadPerRep(80, 5),
+    J.Body.bmi(78, 179.5),
+    J.Body.pullupEquivalent(-3),
+  ];
+})(), [-2.5, 16, 24.2, 1]);
+
 console.log(`\n${failed === 0 ? '✓ Alle Prüfungen bestanden' : `✗ ${failed} Prüfung(en) fehlgeschlagen`}\n`);
 process.exit(failed === 0 ? 0 : 1);

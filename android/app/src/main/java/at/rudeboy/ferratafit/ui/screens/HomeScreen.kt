@@ -35,7 +35,8 @@ fun HomeScreen(
     badgeCount: Int,
     onStartStage: (String) -> Unit,
     onSkipStage: (String) -> Unit,
-    onOpenDay: (String) -> Unit
+    onOpenDay: (String) -> Unit,
+    onOpenBody: () -> Unit = {}
 ) {
     val now = System.currentTimeMillis()
     val p = state.profile
@@ -330,6 +331,11 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        // ---------- Körperdaten, sofern die Waage etwas geliefert hat ----------
+        if (state.body.isNotEmpty()) {
+            item { BodyStrip(state = state, onOpen = onOpenBody) }
         }
 
         // ---------- Kennzahlen ----------

@@ -80,6 +80,7 @@ h2 { font-size: 19px; font-weight: 600; margin: 0 0 6px; }
 .card.accent-amber { border-color: rgba(251, 191, 36, .35); }
 .card.accent-emerald { border-color: rgba(52, 211, 153, .35); }
 .card.accent-rose { border-color: rgba(251, 113, 133, .35); }
+.card.accent-violet { border-color: rgba(167, 139, 250, .35); }
 .card.flush { padding: 0; overflow: hidden; }
 
 .hero {

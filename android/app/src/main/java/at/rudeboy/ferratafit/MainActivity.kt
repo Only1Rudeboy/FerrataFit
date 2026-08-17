@@ -88,6 +88,7 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     val toast by vm.toast.collectAsState()
     val steps by vm.steps.collectAsState()
     val freshBadges by vm.freshBadges.collectAsState()
+    val bodySyncing by vm.bodySyncing.collectAsState()
 
     var tab by remember { mutableIntStateOf(0) }
     var planDayId by remember { mutableStateOf<String?>(null) }
@@ -102,7 +103,11 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     }
 
     LaunchedEffect(state.profile.healthConnectEnabled) {
-        if (state.profile.healthConnectEnabled) vm.refreshSteps()
+        if (state.profile.healthConnectEnabled) {
+            vm.refreshSteps()
+            // Beim Öffnen still nachsehen, ob die Waage etwas Neues geliefert hat
+            vm.syncBody(announce = false)
+        }
     }
 
     // Ersteinrichtung blockiert alles andere, bis sie durch ist.
@@ -150,7 +155,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         badgeCount = vm.badgeCount(),
                         onStartStage = { vm.startStage(it) },
                         onSkipStage = { skipAsk = it },
-                        onOpenDay = { planDayId = it; tab = 1 }
+                        onOpenDay = { planDayId = it; tab = 1 },
+                        onOpenBody = { tab = 2 }
                     )
                     Tab.PLAN -> PlanScreen(
                         state = state,
@@ -160,7 +166,9 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                     )
                     Tab.PROGRESS -> ProgressScreen(
                         state = state,
-                        earnedBadgeIds = vm.earnedBadgeIds()
+                        earnedBadgeIds = vm.earnedBadgeIds(),
+                        bodySyncing = bodySyncing,
+                        onSyncBody = { vm.syncBody() }
                     )
                     Tab.SETTINGS -> SettingsScreen(
                         state = state,
@@ -168,6 +176,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onUpdateProfile = { vm.updateProfile(it) },
                         onToggleStation = { vm.toggleStation(it) },
                         onSetHealthEnabled = { vm.setHealthEnabled(it) },
+                        onSetAutoWeight = { vm.setAutoWeight(it) },
+                        onSyncBody = { vm.syncBody() },
                         onSyncAll = { vm.syncAllToHealth() },
                         onRestartCycle = {
                             vm.restartCycle()

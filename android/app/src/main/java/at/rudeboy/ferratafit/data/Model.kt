@@ -132,7 +132,9 @@ data class Profile(
     /** Gewichtsstufe des Steckgewichts in kg (typisch 5,0 an Kraftstationen). */
     val plateStepKg: Double = 5.0,
     val onboarded: Boolean = false,
-    val healthConnectEnabled: Boolean = false
+    val healthConnectEnabled: Boolean = false,
+    /** Körpergewicht automatisch von der Waage übernehmen. */
+    val autoWeightFromScale: Boolean = true
 )
 
 /** Ein Trainingstag im Split. */
@@ -157,5 +159,11 @@ data class AppState(
     /** Abgeschlossene Etappen in der Reihenfolge, in der sie gegangen wurden. */
     val progress: List<StageLog> = emptyList(),
     /** Bereits vergebene Abzeichen — gemerkt, damit neue erkennbar bleiben. */
-    val seenBadges: Set<String> = emptySet()
+    val seenBadges: Set<String> = emptySet(),
+    /** Messungen von der Waage, über Health Connect eingelesen. */
+    val body: List<BodyMeasurement> = emptyList(),
+    /** Körpergröße in Zentimetern, für den BMI. */
+    val heightCm: Double? = null,
+    /** Wann zuletzt mit der Waage abgeglichen wurde. */
+    val bodySyncedAt: Long = 0L
 )

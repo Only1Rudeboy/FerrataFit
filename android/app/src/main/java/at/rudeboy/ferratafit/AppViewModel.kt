@@ -11,6 +11,7 @@ import at.rudeboy.ferratafit.data.Progression
 import at.rudeboy.ferratafit.data.Session
 import at.rudeboy.ferratafit.data.SetLog
 import at.rudeboy.ferratafit.data.Badge
+import at.rudeboy.ferratafit.data.Body
 import at.rudeboy.ferratafit.data.BadgeSnapshot
 import at.rudeboy.ferratafit.data.Journey
 import at.rudeboy.ferratafit.data.Stage
@@ -20,6 +21,7 @@ import at.rudeboy.ferratafit.data.Station
 import at.rudeboy.ferratafit.data.Stats
 import at.rudeboy.ferratafit.data.Store
 import at.rudeboy.ferratafit.data.Suggestion
+import at.rudeboy.ferratafit.data.fmtKg
 import at.rudeboy.ferratafit.health.HealthBridge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -406,6 +408,81 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshSteps() {
         viewModelScope.launch { _steps.value = health.stepsToday() }
+    }
+
+    // ---------------- Waage ----------------
+
+    private val _bodySyncing = MutableStateFlow(false)
+    val bodySyncing: StateFlow<Boolean> = _bodySyncing.asStateFlow()
+
+    /**
+     * Holt die Körperdaten aus Health Connect.
+     *
+     * Bei einer FitDays-Waage läuft die Kette FitDays → Samsung Health → Health Connect;
+     * hier kommt nur das Ende davon an. Ist die neueste Messung frisch genug, wandert das
+     * Gewicht ins Profil — davon hängen die Startschätzungen und alle Auswertungen ab,
+     * die das Körpergewicht einbeziehen.
+     */
+    fun syncBody(announce: Boolean = true) {
+        if (_bodySyncing.value) return
+        viewModelScope.launch {
+            _bodySyncing.value = true
+            try {
+                if (!health.hasBodyPermissions()) {
+                    if (announce) notify("Für die Waage fehlt noch die Freigabe in Health Connect.", true)
+                    return@launch
+                }
+
+                val measurements = health.readBody()
+                val height = health.readHeightCm()
+                val now = System.currentTimeMillis()
+
+                if (measurements.isEmpty()) {
+                    store.update { it.copy(bodySyncedAt = now) }
+                    if (announce) {
+                        notify("Keine Waagendaten gefunden. Prüfe, ob FitDays mit Samsung Health abgleicht.")
+                    }
+                    return@launch
+                }
+
+                val latest = Body.latest(measurements)
+                var adopted: Double? = null
+
+                store.update { s ->
+                    val takeWeight = s.profile.autoWeightFromScale &&
+                        latest != null &&
+                        Body.isFresh(latest.at, now) &&
+                        kotlin.math.abs(latest.weightKg - s.profile.bodyweightKg) >= 0.3
+                    if (takeWeight && latest != null) adopted = latest.weightKg
+
+                    s.copy(
+                        body = measurements,
+                        heightCm = height ?: s.heightCm,
+                        bodySyncedAt = now,
+                        profile = if (takeWeight && latest != null)
+                            s.profile.copy(bodyweightKg = latest.weightKg) else s.profile
+                    )
+                }
+
+                if (announce) {
+                    val n = measurements.size
+                    val w = adopted
+                    notify(
+                        if (w != null) "$n Messungen übernommen · Körpergewicht auf ${fmtKg(w)} gesetzt"
+                        else "$n Messungen übernommen."
+                    )
+                }
+            } catch (e: Exception) {
+                if (announce) notify("Waage: ${e.message ?: "Abgleich fehlgeschlagen"}", true)
+            } finally {
+                _bodySyncing.value = false
+            }
+        }
+    }
+
+    fun setAutoWeight(enabled: Boolean) {
+        updateProfile { it.copy(autoWeightFromScale = enabled) }
+        if (enabled) syncBody(announce = false)
     }
 
     /** Schiebt alle bisherigen Einheiten nachträglich zu Health Connect. */

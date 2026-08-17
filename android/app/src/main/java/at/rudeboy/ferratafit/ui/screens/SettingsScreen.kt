@@ -41,6 +41,8 @@ fun SettingsScreen(
     onUpdateProfile: ((Profile) -> Profile) -> Unit,
     onToggleStation: (Station) -> Unit,
     onSetHealthEnabled: (Boolean) -> Unit,
+    onSetAutoWeight: (Boolean) -> Unit,
+    onSyncBody: () -> Unit,
     onSyncAll: () -> Unit,
     onRestartCycle: () -> Unit,
     onExport: () -> String,
@@ -202,6 +204,66 @@ fun SettingsScreen(
                             color = Palette.TextLow
                         )
                     }
+                }
+            }
+        }
+
+        // ---------------- Waage ----------------
+        item { SectionTitle("Waage") }
+        item {
+            FfCard {
+                Text("Körperdaten übernehmen", style = MaterialTheme.typography.titleLarge, color = Palette.TextHigh)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Steht deine Waage über FitDays mit Samsung Health in Verbindung, holt die " +
+                        "App Gewicht und Körperzusammensetzung automatisch. Die Kette lautet: " +
+                        "FitDays → Samsung Health → Health Connect → FerrataFit.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Palette.TextMid
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Körpergewicht automatisch setzen",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Palette.TextHigh
+                        )
+                        Text(
+                            "Die letzte Wägung ersetzt den Wert im Profil — davon hängen die " +
+                                "Lastschätzungen ab.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.TextLow
+                        )
+                    }
+                    Switch(
+                        checked = state.profile.autoWeightFromScale,
+                        onCheckedChange = onSetAutoWeight,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.Ink,
+                            checkedTrackColor = Palette.Violet
+                        )
+                    )
+                }
+                Spacer(Modifier.height(14.dp))
+                OutlinedButton(onClick = onSyncBody, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Sync, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Jetzt von der Waage holen")
+                }
+                if (state.body.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "${state.body.size} Messungen gespeichert, die neueste " +
+                            at.rudeboy.ferratafit.data.Body.freshnessLabel(
+                                state.body.maxOf { it.at }, System.currentTimeMillis()
+                            ) + ".",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Palette.TextLow
+                    )
                 }
             }
         }
@@ -410,7 +472,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "FerrataFit · Version 1.3 · Alle Daten bleiben auf dem Gerät",
+                    "FerrataFit · Version 1.4 · Alle Daten bleiben auf dem Gerät",
                     style = MaterialTheme.typography.labelSmall,
                     color = Palette.TextLow
                 )
