@@ -17,10 +17,9 @@ Die App merkt sich jede Last und sagt von selbst, wann aus 40 kg 45 kg werden.
 - **Android-App (APK):** [FerrataFit.apk herunterladen](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
   — Installation aus unbekannter Quelle bestätigen. Ab Android 8. Nur diese Variante
   kann mit Samsung Health sprechen.
-- **Web-App:** Ordner [`web/`](web/) auf einen beliebigen Webspace legen oder lokal starten
-  (`cd web && python3 -m http.server 8765`, dann `http://localhost:8765`). Über
-  „App installieren" bzw. „Zum Home-Bildschirm hinzufügen" wie eine App verwendbar,
-  dank Service Worker auch offline.
+- **Web-App (auch iPhone):** https://only1rudeboy.github.io/FerrataFit/
+  — im Browser öffnen und über „App installieren" bzw. „Zum Home-Bildschirm hinzufügen"
+  wie eine App verwenden. Läuft dank Service Worker auch ohne Netz.
 
 | Heute | Training | Fortschritt |
 |---|---|---|
@@ -111,7 +110,8 @@ Der gesamte Bestand liegt als einzelne JSON-Datei im App-Verzeichnis und ist dam
 jederzeit als Text exportierbar. Health Connect für die Samsung-Anbindung.
 
 **Web** — reines HTML, CSS und JavaScript ohne Build-Schritt, Daten im localStorage,
-Service Worker für den Offline-Betrieb.
+Service Worker für den Offline-Betrieb. Veröffentlicht über GitHub Pages direkt aus
+diesem Repository; lokal genügt `cd web && python3 -m http.server 8765`.
 
 Beide Varianten teilen dieselbe Trainingslogik. Damit sie nicht auseinanderlaufen, prüfen
 zwei Testsätze dieselben Fälle:
