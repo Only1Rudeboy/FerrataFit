@@ -847,7 +847,7 @@ function viewSettings() {
       <p class="muted" style="font-size:13.5px">Bleibt der Fortschritt über drei Einheiten aus, nimmt
         die App bewusst etwa zehn Prozent zurück. Bei Halteübungen wie dem Dead Hang kommen fünf
         Sekunden dazu; ab einer Minute lohnt Zusatzgewicht mehr als noch längeres Hängen.</p>
-      <p class="dim" style="font-size:10.5px;margin-bottom:0">FerrataFit Web · Version 1.0 · Alle Daten bleiben in diesem Browser</p>
+      <p class="dim" style="font-size:10.5px;margin-bottom:0">FerrataFit Web · Version 1.1 · Alle Daten bleiben in diesem Browser</p>
     </div>
   </div>`;
 }
