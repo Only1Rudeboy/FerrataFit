@@ -1,0 +1,24 @@
+# Signaturschlüssel und Passwörter — gehören niemals ins Repository.
+# Ohne diese Dateien baut Gradle mit dem Debug-Schlüssel weiter (siehe README).
+keystore/
+keystore.properties
+
+# Lokale Pfade dieser Maschine
+local.properties
+
+# Build-Ergebnisse
+build/
+.gradle/
+*.iml
+.kotlin/
+
+# Android Studio / IntelliJ
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+desktop.ini
