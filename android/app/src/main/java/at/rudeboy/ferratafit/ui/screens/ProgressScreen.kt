@@ -34,7 +34,9 @@ fun ProgressScreen(
     state: AppState,
     earnedBadgeIds: Set<String>,
     bodySyncing: Boolean,
-    onSyncBody: () -> Unit
+    onSyncBody: () -> Unit,
+    onAddBodyManual: (Double, Double?) -> Unit = { _, _ -> },
+    onImportBodyFile: (String) -> Unit = {}
 ) {
     val now = System.currentTimeMillis()
     val sessions = state.sessions
@@ -71,7 +73,15 @@ fun ProgressScreen(
 
         // ---------- Körperdaten von der Waage ----------
         item { SectionTitle("Körper") }
-        item { BodyCard(state = state, syncing = bodySyncing, onSync = onSyncBody) }
+        item {
+            BodyCard(
+                state = state,
+                syncing = bodySyncing,
+                onSync = onSyncBody,
+                onAddManual = onAddBodyManual,
+                onImportFile = onImportBodyFile
+            )
+        }
 
         // ---------- Höhenmeter und Gipfel ----------
         item {

@@ -168,7 +168,9 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         state = state,
                         earnedBadgeIds = vm.earnedBadgeIds(),
                         bodySyncing = bodySyncing,
-                        onSyncBody = { vm.syncBody() }
+                        onSyncBody = { vm.syncBody() },
+                        onAddBodyManual = { kg, fat -> vm.addBodyManual(kg, fat) },
+                        onImportBodyFile = { vm.importBodyFile(it) }
                     )
                     Tab.SETTINGS -> SettingsScreen(
                         state = state,

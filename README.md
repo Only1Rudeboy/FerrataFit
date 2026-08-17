@@ -10,7 +10,7 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 <div align="center">
 
-[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.4" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
+[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.5" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
 
 </div>
 
@@ -153,8 +153,19 @@ Die App zeigt deshalb, wie viel Körpergewicht du je Wiederholung bewegst und wa
 Veränderung ungefähr an zusätzlichen Wiederholungen bedeutet. Sie ordnet nur ein, was
 gemessen wurde — Zielgewichte gibt sie keine vor.
 
-Die Web-Variante hat keinen Zugang zu Health Connect; dort trägt man das Gewicht von Hand
-ein, die Auswertung darunter ist dieselbe.
+**Wenn die Kette nicht steht**, gibt es zwei Wege ohne Health Connect:
+
+- **Eintragen** — Gewicht und Körperfett von Hand, direkt in der App
+- **Datei** — eine aus FitDays geteilte Tabelle einlesen. Der Leser kommt mit Komma,
+  Semikolon und Tabulator zurecht, erkennt deutsche wie englische Spaltennamen und
+  akzeptiert Punkt wie Komma als Dezimaltrenner
+
+Ein *direkter* Zugriff auf die FitDays-App ist nicht möglich: Android kapselt Apps
+gegeneinander ab, und FitDays bietet keine Schnittstelle an. Das ist eine Grenze des
+Systems, keine Entscheidung dieser App.
+
+Die Web-Variante hat ohnehin keinen Zugang zu Health Connect; dort trägt man das Gewicht
+von Hand ein, die Auswertung darunter ist dieselbe.
 
 ## ⌚ Samsung Health
 
@@ -193,14 +204,14 @@ Service Worker für den Offline-Betrieb. Veröffentlicht über GitHub Pages dire
 diesem Repository; lokal genügt `cd web && python3 -m http.server 8765`.
 
 Beide Varianten teilen dieselbe Trainings- und Etappenlogik. Damit sie nicht
-auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **114 Prüfungen insgesamt**:
+auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **128 Prüfungen insgesamt**:
 
 ```bash
 node web/test-progression.mjs    # 13 Prüfungen: Gewichtssteigerung
 node web/test-journey.mjs        # 44 Prüfungen: Etappen, Höhenmeter, Abzeichen, Anleitungen, Körper
 ```
 
-Für die Android-Seite (60 Prüfungen):
+Für die Android-Seite (74 Prüfungen):
 
 ```bash
 cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
@@ -221,7 +232,7 @@ FerrataFit/
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
 │   ├── app/src/main/java/…/update/   Selbstaktualisierung über GitHub
-│   ├── app/src/test/                 60 Tests
+│   ├── app/src/test/                 74 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
 │   ├── exercises.js                  Übungskatalog mit Ausführungsanleitungen

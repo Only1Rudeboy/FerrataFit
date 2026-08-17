@@ -472,7 +472,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "FerrataFit · Version 1.4 · Alle Daten bleiben auf dem Gerät",
+                    "FerrataFit · Version 1.5 · Alle Daten bleiben auf dem Gerät",
                     style = MaterialTheme.typography.labelSmall,
                     color = Palette.TextLow
                 )

@@ -12,6 +12,8 @@ import at.rudeboy.ferratafit.data.Session
 import at.rudeboy.ferratafit.data.SetLog
 import at.rudeboy.ferratafit.data.Badge
 import at.rudeboy.ferratafit.data.Body
+import at.rudeboy.ferratafit.data.BodyImport
+import at.rudeboy.ferratafit.data.BodyMeasurement
 import at.rudeboy.ferratafit.data.BadgeSnapshot
 import at.rudeboy.ferratafit.data.Journey
 import at.rudeboy.ferratafit.data.Stage
@@ -483,6 +485,61 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setAutoWeight(enabled: Boolean) {
         updateProfile { it.copy(autoWeightFromScale = enabled) }
         if (enabled) syncBody(announce = false)
+    }
+
+    /**
+     * Trägt eine Messung von Hand ein — der Weg, wenn die Kette über Samsung Health
+     * nicht steht oder die Waage gar nicht vernetzt ist.
+     */
+    fun addBodyManual(weightKg: Double, bodyFatPercent: Double? = null) {
+        if (weightKg < 25 || weightKg > 300) {
+            notify("Bitte ein Gewicht zwischen 25 und 300 kg eintragen.", true)
+            return
+        }
+        val now = System.currentTimeMillis()
+        val entry = BodyMeasurement(
+            at = now,
+            weightKg = weightKg,
+            bodyFatPercent = bodyFatPercent?.takeIf { it in 1.0..70.0 }
+        )
+        store.update { s ->
+            s.copy(
+                body = BodyImport.merge(s.body, listOf(entry)),
+                profile = if (s.profile.autoWeightFromScale)
+                    s.profile.copy(bodyweightKg = weightKg) else s.profile
+            )
+        }
+        notify("${fmtKg(weightKg)} eingetragen.")
+    }
+
+    /**
+     * Liest eine aus FitDays (oder einer anderen Waagen-App) geteilte Tabelle ein.
+     * Vorhandene Messungen bleiben erhalten; je Tag gewinnt die jüngere.
+     */
+    fun importBodyFile(text: String) {
+        val result = BodyImport.parse(text)
+        if (result.error != null) {
+            notify(result.error, true)
+            return
+        }
+        val latest = Body.latest(result.measurements)
+        store.update { s ->
+            val merged = BodyImport.merge(s.body, result.measurements)
+            val newest = Body.latest(merged)
+            s.copy(
+                body = merged,
+                profile = if (s.profile.autoWeightFromScale && newest != null &&
+                    Body.isFresh(newest.at, System.currentTimeMillis())
+                ) s.profile.copy(bodyweightKg = newest.weightKg) else s.profile
+            )
+        }
+        notify(
+            buildString {
+                append("${result.measurements.size} Messungen eingelesen")
+                if (result.skipped > 0) append(", ${result.skipped} Zeilen übersprungen")
+                latest?.let { append(" · zuletzt ${fmtKg(it.weightKg)}") }
+            }
+        )
     }
 
     /** Schiebt alle bisherigen Einheiten nachträglich zu Health Connect. */

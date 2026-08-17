@@ -1,16 +1,27 @@
 package at.rudeboy.ferratafit.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingFlat
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,13 +44,27 @@ import kotlin.math.roundToInt
 fun BodyCard(
     state: AppState,
     syncing: Boolean,
-    onSync: () -> Unit
+    onSync: () -> Unit,
+    onAddManual: (Double, Double?) -> Unit = { _, _ -> },
+    onImportFile: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current
     val now = System.currentTimeMillis()
     val latest = Body.latest(state.body)
     val trend = Body.weightTrend(state.body, now)
     val bestPullup = state.sessions.flatMap { it.sets }
         .filter { it.exerciseId == "pullup" }.maxOfOrNull { it.reps } ?: 0
+    var showManual by remember { mutableStateOf(false) }
+
+    // Datei aus FitDays oder einer anderen Waagen-App einlesen
+    val pickFile = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+        }.getOrNull()?.let(onImportFile)
+    }
 
     FfCard(accent = if (latest != null) Palette.Violet else null) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -87,6 +112,11 @@ fun BodyCard(
                     "in den jeweiligen Apps einschalten.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Palette.TextMid
+            )
+            Spacer(Modifier.height(14.dp))
+            ManualRow(
+                onManual = { showManual = true },
+                onFile = { pickFile.launch(arrayOf("*/*")) }
             )
             return@FfCard
         }
@@ -255,7 +285,90 @@ fun BodyCard(
                 }
             }
         }
+
+        Spacer(Modifier.height(14.dp))
+        ManualRow(
+            onManual = { showManual = true },
+            onFile = { pickFile.launch(arrayOf("text/*", "text/csv", "text/comma-separated-values", "*/*")) }
+        )
     }
+
+    if (showManual) {
+        ManualDialog(
+            onDismiss = { showManual = false },
+            onSave = { kg, fat -> showManual = false; onAddManual(kg, fat) }
+        )
+    }
+}
+
+/** Die beiden Wege, wenn der Abgleich über Health Connect nicht greift. */
+@Composable
+private fun ManualRow(onManual: () -> Unit, onFile: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = onManual, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(7.dp))
+            Text("Eintragen")
+        }
+        OutlinedButton(onClick = onFile, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.FileUpload, null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(7.dp))
+            Text("Datei")
+        }
+    }
+}
+
+/** Messung von Hand eintragen. */
+@Composable
+private fun ManualDialog(onDismiss: () -> Unit, onSave: (Double, Double?) -> Unit) {
+    var weight by remember { mutableStateOf("") }
+    var fat by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Messung eintragen") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = weight,
+                    onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' || c == ',' } },
+                    label = { Text("Gewicht in kg") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = fat,
+                    onValueChange = { fat = it.filter { c -> c.isDigit() || c == '.' || c == ',' } },
+                    label = { Text("Körperfett in % (optional)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Die Werte stehen in der FitDays-App auf der Startseite.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Palette.TextLow
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val kg = weight.replace(',', '.').toDoubleOrNull()
+                    val f = fat.replace(',', '.').toDoubleOrNull()
+                    if (kg != null) onSave(kg, f)
+                },
+                enabled = weight.replace(',', '.').toDoubleOrNull() != null,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Palette.Violet, contentColor = Palette.Ink
+                )
+            ) { Text("Speichern") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } }
+    )
 }
 
 /** Kompakte Zeile für die Startseite: nur Gewicht und Trend. */
