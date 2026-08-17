@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="64" viewBox="0 0 320 64" role="img"
+     aria-label="APK herunterladen — FerrataFit 1.0">
+  <defs>
+    <linearGradient id="btn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4FC7FA"/>
+      <stop offset="1" stop-color="#0EA5E9"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="318" height="62" rx="16" fill="url(#btn)"/>
+  <rect x="1" y="1" width="318" height="62" rx="16" fill="none" stroke="#7FDBFF" stroke-opacity=".5"/>
+
+  <!-- Berg als Marke, gleiche Form wie das App-Symbol -->
+  <g transform="translate(24, 18)">
+    <path d="M14 2 L26 22 H2 Z" fill="#0B1220" opacity=".45"/>
+    <path d="M9 8 L21 27 H-3 Z" fill="#0B1220"/>
+  </g>
+
+  <text x="72" y="28" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        font-size="17" font-weight="700" fill="#062333">APK herunterladen</text>
+  <text x="72" y="46" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+        font-size="12" fill="#083A52">FerrataFit 1.0 · Android 8+ · 13 MB</text>
+
+  <!-- Pfeil nach unten -->
+  <g transform="translate(282, 24)" fill="none" stroke="#062333" stroke-width="2.6"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 0 V13"/>
+    <path d="M2 8 L8 14 L14 8"/>
+  </g>
+</svg>

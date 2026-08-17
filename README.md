@@ -8,7 +8,7 @@ Die App merkt sich jede Last und sagt von selbst, wann aus 40 kg 45 kg werden.
 
 <div align="center">
 
-[![APK herunterladen](https://img.shields.io/badge/⬇%20APK%20herunterladen-FerrataFit%201.0-38BDF8?style=for-the-badge&logo=android&logoColor=white&labelColor=0B1220)](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
+[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.0" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
 
 </div>
 
