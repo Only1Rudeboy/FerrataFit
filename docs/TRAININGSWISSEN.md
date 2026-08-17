@@ -123,9 +123,44 @@ und belastet Sehnen und Gelenke weniger als schwere Einzelwiederholungen.
 
 ---
 
-## 6. Der Split
+## 6. Dehnen und Mobilität — warum jeder Tag zählt
 
-Drei Einheiten pro Woche, mindestens ein Ruhetag dazwischen:
+Ruhetage sind keine Leerstellen. Die Anpassung ans Training passiert genau dort, und
+gezielte Mobilitätsarbeit an trainingsfreien Tagen gilt als der wirksamste Weg, um
+Beweglichkeit dauerhaft zu verbessern. Deshalb hat in FerrataFit **jeder Tag eine
+Etappe** — drei mit Gerät, vier ohne.
+
+**Haltezeiten** nach gängiger Empfehlung:
+
+| Zweck | Dauer |
+|---|---|
+| Nach dem Training, Standard | 20–30 Sekunden je Position |
+| Regenerationstag, tiefere Wirkung | 30–90 Sekunden |
+| Hüftbeuger | 30 Sekunden pro Seite |
+
+Längeres Halten beruhigt zusätzlich das Nervensystem und unterstützt so die Erholung —
+darum sind die Zeiten in der Regenerationsetappe um etwa 60 Prozent erhöht.
+
+**Die kritischen Zonen** für alles, was am Fels passiert:
+
+1. **Unterarme** — verkürzen durch jedes Hängen und Ziehen. Beuger *und* Strecker zu
+   dehnen ist die wirksamste Vorbeugung gegen Ellbogenbeschwerden; zusätzlich verbessert
+   es die Durchblutung und beschleunigt damit die Erholung.
+2. **Hüfte** — die kritischste Zone für hohe Tritte. Vom vielen Sitzen verkürzt der
+   Hüftbeuger und bremst genau die Bewegung, die du am Steig ständig brauchst.
+3. **Waden** — tragen dich stundenlang auf schmalen Klammern und machen schnell zu.
+4. **Brust und Schulter** — gegen den Rundrücken, den Rucksacktragen und Drückübungen
+   begünstigen.
+5. **Brustwirbelsäule** — eine bewegliche BWS nimmt Druck von Schultern und Lende.
+
+Die App verteilt diese Zonen auf zwei Mobility-Etappen (Oberkörper sowie Hüfte/Beine)
+plus eine längere Regenerationseinheit, damit nichts liegen bleibt.
+
+---
+
+## 7. Der Split und die Etappen
+
+Drei Krafteinheiten pro Woche, mindestens ein Tag dazwischen:
 
 **Tag A — Zug & Griff** (der Klettersteig-Tag)
 Klimmzug → Latzug → Rudern → Knieheben hängend → Bizeps → Dead Hang
@@ -141,8 +176,13 @@ limitieren — die willst du ausgeruht trainieren. Der Bein-Tag folgt, damit sic
 Unterarme erholen, während die Beine arbeiten. Der Druck-Tag hält die Schultern im
 Gleichgewicht: Wer nur zieht, zieht sich die Haltung nach vorne.
 
-Ergänzend, außerhalb der App: Wandern, Treppensteigen oder Bouldern. Bouldern trainiert
-Grifftechnik und Höhengewöhnung zugleich und ist die beste Ergänzung überhaupt.
+Dazwischen liegen die Etappen ohne Gerät: zwei Mobility-Einheiten, eine Ausdauer-Etappe
+(Wandern, Treppen oder Rad) und eine Regenerationseinheit mit langem Dehnen. So ergibt
+sich ein Sieben-Tage-Zyklus, in dem jeder Tag eine Aufgabe hat — und zwischen zwei
+Krafteinheiten nie zwei harte Tage aufeinanderfolgen.
+
+Ergänzend, außerhalb der App: Bouldern. Es trainiert Grifftechnik und Höhengewöhnung
+zugleich und ist die beste Ergänzung überhaupt.
 
 ---
 
@@ -164,6 +204,12 @@ Grifftechnik und Höhengewöhnung zugleich und ist die beste Ergänzung überhau
 - [Progressing for Hypertrophy — RP Strength](https://rpstrength.com/blogs/articles/progressing-for-hypertrophy)
 - [Deadhang Progressions: Beginner to Elite](https://deadhangs.com/deadhang-progressions/)
 - [Two Progression Methods Improve Max Dead Hang Time — Mountain Tactical Institute](https://mtntactical.com/research/mini-study-two-progression-methods-improve-max-dead-hang-time-in-untrained-athletes/)
+- [Dehnübungen fürs Klettern — Bergzeit Magazin](https://www.bergzeit.de/magazin/dehnuebungen-stretching-klettern/)
+- [Bouldern Beweglichkeit: Trainingskonzept — Kletterinsel](https://kletterinsel.de/bouldern-beweglichkeit-training/)
+- [Mobility As A Rest Period — Climb Strong](https://www.climbstrong.com/resource-posts/mobility-as-a-rest-period)
+- [Mobility for Climbers — Rock Climbing Realms](https://rockclimbingrealms.com/mobility-and-flexibility-program/)
+- [How to Stretch for Climbing — Fitro](https://fitro.info/how-to-stretch-for-climbing)
+- [Regeneration nach Klettern & Bouldern — Blackroll](https://blackroll.com/routine/fascia-training-for-climbing)
 - [Kraftstation Übungen — Hop-Sport](https://hop-sport.at/blog/kraftstation-ubungen-ganzkorper-trainingsplan-fur-anfanger)
 - [Trainingsplan Ganzkörper-Workout an der Kraftstation — HAMMER](https://www.hammer.de/fitnesswissen/kraftstation-trainingsplan)
 - [Develop Workout Experiences with Health Connect — Android Developers](https://developer.android.com/health-and-fitness/health-connect/experiences/workouts)

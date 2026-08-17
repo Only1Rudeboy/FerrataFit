@@ -4,7 +4,9 @@ Trainings-App für das eigene Multifunktionsgerät, ausgelegt auf **Allgemeinfit
 leichte Definition und bessere Leistung am Klettersteig** — als Android-App und Web-App.
 Keine Anmeldung, keine Datensammlung, kein Server. Alles bleibt auf dem Gerät.
 
-Die App merkt sich jede Last und sagt von selbst, wann aus 40 kg 45 kg werden.
+Die App führt dich Etappe für Etappe: **jeder Tag hat eine Aufgabe**, und erst wenn sie
+steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wann aus
+40 kg 45 kg werden.
 
 <div align="center">
 
@@ -21,15 +23,21 @@ Die App merkt sich jede Last und sagt von selbst, wann aus 40 kg 45 kg werden.
   — im Browser öffnen und über „App installieren" bzw. „Zum Home-Bildschirm hinzufügen"
   wie eine App verwenden. Läuft dank Service Worker auch ohne Netz.
 
-| Heute | Training | Fortschritt |
-|---|---|---|
-| ![Startbildschirm](docs/screenshots/heute.png) | ![Trainingsansicht](docs/screenshots/training.png) | ![Fortschritt](docs/screenshots/fortschritt.png) |
+| Heute | Training | Dehnen | Fortschritt |
+|---|---|---|---|
+| ![Startbildschirm](docs/screenshots/heute.png) | ![Trainingsansicht](docs/screenshots/training.png) | ![Dehn-Etappe](docs/screenshots/dehnen.png) | ![Fortschritt](docs/screenshots/fortschritt.png) |
 
 ## ✨ Funktionen
 
+- **Etappen statt Trainingstage** — jeder Tag hat eine Aufgabe. Erst wenn sie steht,
+  wird die nächste frei
 - **Automatische Gewichtsvorschläge** — die App erkennt, wann aufgelastet wird, und
   zeigt `40 kg → 45 kg` samt Begründung
-- **Drei Trainingstage** im Wechsel, auf den Klettersteig zugeschnitten
+- **Höhenmeter als Fortschritt** — jede Etappe bringt welche, die Summe führt über
+  echte Gipfel bis zum Everest
+- **Abzeichen** für Meilensteine: erster Klimmzug, Minute im Dead Hang, lückenloser Zyklus
+- **Dehn- und Mobility-Etappen** mit Timer, Ausführung und Begründung je Übung
+- **Spruch des Tages** — wechselt täglich, bleibt über den Tag stabil
 - **Geräte-Abgleich** — beim Einrichten hakst du deine Stationen ab; es werden nur
   Übungen eingeplant, die dein Gerät hergibt
 - **Satz-Logging mit Pausenuhr**, die beim Abhaken automatisch startet
@@ -37,24 +45,28 @@ Die App merkt sich jede Last und sagt von selbst, wann aus 40 kg 45 kg werden.
 - **Countdown zur geplanten Tour**
 - **Verlaufskurven je Übung**, Bestleistungen, Einheiten pro Woche
 - **Entlastungswochen** automatisch im Fünf-Wochen-Rhythmus
-- **Zu jeder Übung:** Ausführungshinweis und warum sie am Steig zählt
 - **Samsung Health** über Health Connect (Android-App)
 - **Export/Import** der kompletten Daten, auch zwischen App und Web-Variante
 
-## 🎯 Der Trainingsplan
+## 🎯 Der Steig — sieben Etappen im Zyklus
 
-Drei Einheiten pro Woche, mindestens ein Ruhetag dazwischen:
-
-| Tag | Schwerpunkt | Übungen |
-|---|---|---|
-| **A** | Zug & Griff — *der Klettersteig-Tag* | Klimmzug · Latzug · Rudern · Knieheben hängend · Curl · Dead Hang |
-| **B** | Beine & Steigkraft | Step-up · Beinstrecker · Beinbeuger · Ausfallschritt · Wadenheben · Plank |
-| **C** | Druck & Stabilität | Brustpresse · Schulterdrücken · Butterfly · Reverse Butterfly · Trizeps |
+| # | Etappe | Inhalt | Hm |
+|---|---|---|---|
+| 1 | 💪 **Zug & Griff** | Klimmzug · Latzug · Rudern · Knieheben hängend · Curl · Dead Hang | 120 |
+| 2 | 🧘 **Lockern** | Unterarme, Brust, Latissimus, Handgelenke | 40 |
+| 3 | 🦵 **Beine & Steigkraft** | Step-up · Beinstrecker · Beinbeuger · Ausfallschritt · Wadenheben | 120 |
+| 4 | 🧘 **Hüfte & Beine** | Hüftbeuger · Taube · Oberschenkel · Waden · Brustwirbelsäule | 40 |
+| 5 | 💪 **Druck & Stabilität** | Brustpresse · Schulterdrücken · Butterfly · Reverse Butterfly · Trizeps | 120 |
+| 6 | 🥾 **Rausgehen** | Wandern, Treppen oder Rad — mindestens 30 Minuten | 80 |
+| 7 | 🌙 **Runterkommen** | Langes Dehnen, 30–90 Sekunden pro Position | 50 |
 
 Der Zug-Tag steht vorne, weil Griff- und Zugkraft am Steig zuerst limitieren — die
-willst du ausgeruht trainieren. Der Bein-Tag folgt, damit sich die Unterarme erholen,
-während die Beine arbeiten. Der Druck-Tag hält die Schultern im Gleichgewicht: Wer nur
-zieht, zieht sich die Haltung nach vorne.
+willst du ausgeruht trainieren. Zwischen zwei Krafteinheiten liegt immer eine leichtere
+Etappe: Das hält den Reiz hoch und gibt trotzdem Erholung. Der Druck-Tag hält die
+Schultern im Gleichgewicht, denn wer nur zieht, zieht sich die Haltung nach vorne.
+
+**Eine Etappe auslassen ist erlaubt** — die nächste wird trotzdem frei, es gibt nur
+keine Höhenmeter dafür. Die App bremst nicht, sie belohnt.
 
 ## 📈 Wie gesteigert wird
 
@@ -76,6 +88,24 @@ Beim Dead Hang kommen fünf Sekunden dazu; ab einer Minute lohnt Zusatzgewicht m
 noch längeres Hängen.
 
 Ausführlich mit Begründungen: [`docs/TRAININGSWISSEN.md`](docs/TRAININGSWISSEN.md)
+
+## ⛰️ Höhenmeter und Gipfel
+
+Jede abgeschlossene Etappe schreibt Höhenmeter gut. Die Summe führt über echte Gipfel —
+das ist greifbarer als eine abstrakte Punktzahl:
+
+| Höhenmeter | Gipfel |
+|---|---|
+| 300 | Erste Aussicht |
+| 800 | Waldgrenze |
+| 1.600 | Almhochtal |
+| 2.600 | Hoher Freschen — *2.004 m, der Hausberg* |
+| 4.000 | Piz Buin — *3.312 m, Vorarlbergs höchster* |
+| 6.000 | Mont Blanc — *4.810 m* |
+| 9.000 | Everest — *8.848 m* |
+
+Ein vollständiger Wochenzyklus bringt 570 Höhenmeter. Bei der Ausdauer-Etappe zählen
+deine echten Höhenmeter zusätzlich.
 
 ## ⌚ Samsung Health
 
@@ -113,15 +143,15 @@ jederzeit als Text exportierbar. Health Connect für die Samsung-Anbindung.
 Service Worker für den Offline-Betrieb. Veröffentlicht über GitHub Pages direkt aus
 diesem Repository; lokal genügt `cd web && python3 -m http.server 8765`.
 
-Beide Varianten teilen dieselbe Trainingslogik. Damit sie nicht auseinanderlaufen, prüfen
-zwei Testsätze dieselben Fälle:
+Beide Varianten teilen dieselbe Trainings- und Etappenlogik. Damit sie nicht
+auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **74 Prüfungen insgesamt**:
 
 ```bash
-node web/test-progression.mjs                    # 13 Prüfungen, Web
-bash android/build.sh                            # Android bauen
+node web/test-progression.mjs    # 13 Prüfungen: Gewichtssteigerung
+node web/test-journey.mjs        # 28 Prüfungen: Etappen, Höhenmeter, Abzeichen
 ```
 
-Für die Android-Tests:
+Für die Android-Seite (33 Prüfungen):
 
 ```bash
 cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
@@ -134,12 +164,18 @@ cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
 ```
 FerrataFit/
 ├── android/          Android-App (Kotlin, Jetpack Compose)
-│   ├── app/src/main/java/…/data/     Übungskatalog, Split, Progression, Speicherung
+│   ├── app/src/main/java/…/data/     Übungskatalog, Progression, Etappen, Speicherung
+│   │   ├── Catalog.kt                Übungen und Split
+│   │   ├── Progression.kt            Gewichtssteigerung
+│   │   └── Journey.kt                Etappen, Dehnkatalog, Höhenmeter, Abzeichen
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
-│   ├── app/src/test/                 Tests der Progressionslogik
+│   ├── app/src/test/                 33 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
+│   ├── data.js                       Übungen und Progression
+│   ├── journey.js                    Etappen, Dehnkatalog, Höhenmeter, Abzeichen
+│   └── test-*.mjs                    41 Tests
 └── docs/             Trainingswissen und Screenshots
 ```
 

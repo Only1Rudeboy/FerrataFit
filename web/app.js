@@ -7,6 +7,7 @@
  */
 
 import * as D from './data.js';
+import * as J from './journey.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
 
@@ -23,12 +24,17 @@ const DEFAULT_STATE = {
   },
   sessions: [],
   hiddenExercises: [],
+  /** Abgeschlossene Etappen in der Reihenfolge, in der sie gegangen wurden. */
+  progress: [],
+  /** Bereits vergebene Abzeichen — gemerkt, damit neue erkennbar bleiben. */
+  seenBadges: [],
 };
 
 let state = load();
 let tab = 'home';
 let planOpen = null;
-let active = null;      // laufende Einheit
+let active = null;      // laufende Krafteinheit
+let activeStage = null; // laufende Mobility-/Ausdauer-Etappe
 let restTimer = null;
 let trendPick = null;
 
@@ -116,6 +122,83 @@ function greeting() {
 
 const estimateMinutes = (exs) =>
   (Math.floor(exs.reduce((s, e) => s + e.sets * (e.restSec + 40), 0) / 60 / 5) + 1) * 5;
+
+/**
+ * Momentaufnahme für die Abzeichenprüfung — bündelt alles, was ein Abzeichen
+ * abfragen könnte, an einer Stelle.
+ */
+function badgeSnapshot() {
+  const now = Date.now();
+  const increases = D.EXERCISES.reduce((n, ex) => {
+    const loads = state.sessions
+      .filter((s) => s.sets.some((x) => x.exerciseId === ex.id))
+      .sort((a, b) => a.startedAt - b.startedAt)
+      .map((s) => Math.max(...s.sets.filter((x) => x.exerciseId === ex.id).map((x) => x.weightKg || 0)));
+    return n + loads.filter((v, i) => i > 0 && v > loads[i - 1]).length;
+  }, 0);
+
+  return {
+    progress: state.progress,
+    sessions: state.sessions,
+    meters: J.totalMeters(state.progress),
+    weeklyStreak: D.weeklyStreak(state.sessions, now),
+    increases,
+    best: {
+      deadhang: D.bestOf(state.sessions, 'deadhang', 'seconds'),
+      pullup: D.bestOf(state.sessions, 'pullup', 'reps'),
+      plank: D.bestOf(state.sessions, 'plank', 'seconds'),
+    },
+  };
+}
+
+/**
+ * Etappe abschließen: Höhenmeter gutschreiben, neue Abzeichen melden.
+ * `skipped` verbucht sie als gegangen, aber ohne Gutschrift.
+ */
+function completeStage(stage, { skipped = false, detail = '' } = {}) {
+  const before = J.earnedBadges(badgeSnapshot()).map((b) => b.id);
+
+  update((s) => {
+    s.progress.push({
+      stageId: stage.id,
+      kind: stage.kind,
+      meters: skipped ? 0 : stage.meters,
+      at: Date.now(),
+      skipped,
+      detail,
+    });
+  });
+
+  const after = J.earnedBadges(badgeSnapshot());
+  const fresh = after.filter((b) => !before.includes(b.id));
+  if (fresh.length) {
+    update((s) => { s.seenBadges = after.map((b) => b.id); });
+    showBadgeDialog(fresh);
+  } else if (!skipped) {
+    toast(`+${stage.meters} Hm · ${J.completionLine(stage.kind)}`);
+  } else {
+    toast('Etappe übersprungen — die nächste ist frei.');
+  }
+}
+
+/** Feierliche Meldung, wenn ein Abzeichen dazukommt. */
+function showBadgeDialog(badges) {
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `
+    <div style="text-align:center">
+      <div style="font-size:44px;line-height:1">${badges.map((b) => b.icon).join(' ')}</div>
+      <h2 style="margin:12px 0 4px">${badges.length > 1 ? 'Neue Abzeichen!' : 'Neues Abzeichen!'}</h2>
+      ${badges.map((b) => `
+        <div style="margin:14px 0">
+          <div style="font-weight:700;font-size:17px;color:var(--amber)">${esc(b.name)}</div>
+          <div class="muted" style="font-size:13px">${esc(b.desc)}</div>
+        </div>`).join('')}
+      <button class="btn primary" style="margin-top:10px" id="badge-ok">Weiter</button>
+    </div>`;
+  document.body.appendChild(dlg);
+  dlg.showModal();
+  dlg.querySelector('#badge-ok').onclick = () => { dlg.close(); dlg.remove(); };
+}
 
 const adviceClass = (a) => ({
   INCREASE: 'amber', DELOAD: 'emerald', BACKOFF: 'rose', START: 'violet', HOLD: 'sky',
@@ -296,67 +379,124 @@ function captureOnboarding() {
 function viewHome() {
   const now = Date.now();
   const p = state.profile;
+  const stage = J.currentStage(state.progress);
+  const idx = J.currentStageIndex(state.progress);
+  const meters = J.totalMeters(state.progress);
+  const summit = J.summitProgress(meters);
+  const quote = J.quoteOfDay(now);
   const week = D.weekInCycle(p, now);
   const deload = D.isDeloadWeek(week);
-  const dayId = D.nextDayId(state.sessions);
-  const day = D.dayById(dayId);
-  const exs = D.exercisesFor(day, p, state.hiddenExercises);
-  const sugs = exs.map((e) => D.suggest(e, state.sessions, p, now));
-  const ups = sugs.filter((s) => s.advice === D.ADVICE.INCREASE);
   const readiness = D.ferrataReadiness(state.sessions, now);
   const streak = D.weeklyStreak(state.sessions, now);
-  const thisWeek = D.sessionsThisWeek(state.sessions, now);
   const ringColor = readiness >= 65 ? 'var(--emerald)' : readiness >= 35 ? 'var(--sky)' : 'var(--amber)';
 
-  const recent = state.sessions.slice().sort((a, b) => b.startedAt - a.startedAt).slice(0, 4);
+  // Kraftetappen zeigen direkt, was heute aufgelastet wird.
+  let upsHtml = '';
+  let statsHtml = '';
+  if (stage.kind === J.STAGE_KIND.STRENGTH) {
+    const day = J.dayForStage(stage);
+    const exs = D.exercisesFor(day, p, state.hiddenExercises);
+    const ups = exs.map((e) => D.suggest(e, state.sessions, p, now))
+      .filter((s) => s.advice === D.ADVICE.INCREASE);
+    statsHtml = `<div class="row" style="gap:22px;margin-top:14px">
+      <div><div style="font-size:17px;font-weight:600">${exs.length}</div><div class="dim" style="font-size:10.5px">Übungen</div></div>
+      <div><div style="font-size:17px;font-weight:600">${exs.reduce((s, e) => s + e.sets, 0)}</div><div class="dim" style="font-size:10.5px">Sätze</div></div>
+      <div><div style="font-size:17px;font-weight:600">~${estimateMinutes(exs)}</div><div class="dim" style="font-size:10.5px">Minuten</div></div>
+    </div>`;
+    upsHtml = ups.length ? `
+      <div style="color:var(--amber);font-weight:600;font-size:15px;margin-bottom:8px">
+        ↑ ${ups.length === 1 ? 'Heute wird aufgelastet' : `Heute wird ${ups.length}× aufgelastet`}</div>
+      ${ups.slice(0, 3).map((s) => `
+        <div class="row" style="padding:3px 0">
+          <span class="grow muted" style="font-size:13.5px">${esc(s.exercise.name)}</span>
+          ${s.previousHeadline ? `<span class="dim" style="font-size:12px">${esc(s.previousHeadline)} →</span>` : ''}
+          <b style="color:var(--amber)">${esc(s.headline)}</b>
+        </div>`).join('')}
+      <div style="height:14px"></div>` : '';
+  } else {
+    const mins = stage.kind === J.STAGE_KIND.ENDURANCE ? 30
+      : Math.round(J.STAGES.find((s) => s.id === stage.id).mobilityIds
+          .reduce((sum, id) => sum + (J.mobilityById(id).seconds * (J.mobilityById(id).perSide ? 2 : 1) + 12), 0) / 60);
+    const count = stage.mobilityIds ? stage.mobilityIds.length : 1;
+    statsHtml = `<div class="row" style="gap:22px;margin-top:14px">
+      <div><div style="font-size:17px;font-weight:600">${count}</div><div class="dim" style="font-size:10.5px">${stage.kind === J.STAGE_KIND.ENDURANCE ? 'Aufgabe' : 'Übungen'}</div></div>
+      <div><div style="font-size:17px;font-weight:600">~${mins}</div><div class="dim" style="font-size:10.5px">Minuten</div></div>
+      <div><div style="font-size:17px;font-weight:600">+${stage.meters}</div><div class="dim" style="font-size:10.5px">Höhenmeter</div></div>
+    </div>`;
+  }
 
   return `
   <div class="screen">
-    <p class="sub" style="margin:0">${greeting()}</p>
-    <h1>Bereit für ${esc(day.title)}?</h1>
+    <p class="sub" style="margin:0">${greeting()} · Etappe ${idx + 1}</p>
+    <h1>${esc(stage.title)}</h1>
 
-    <div class="card accent-${deload ? 'emerald' : 'sky'}" style="margin-top:14px">
-      <div class="row between">
-        <span class="pill ${deload ? 'emerald' : 'sky'}">Woche ${week} von ${D.CYCLE_WEEKS}</span>
-        ${deload ? '<span class="pill emerald">Entlastung</span>' : ''}
-      </div>
-      <p class="muted" style="margin:10px 0 12px;font-size:13.5px">${esc(D.weekLabel(week))}</p>
-      <div class="bar ${deload ? 'emerald' : ''}"><i style="width:${(week / D.CYCLE_WEEKS) * 100}%"></i></div>
+    <div class="quote">
+      <div class="q">„${esc(quote.text)}"</div>
+      ${quote.by ? `<div class="by">— ${esc(quote.by)}</div>` : ''}
     </div>
 
-    <div class="card flush">
+    <!-- Höhenmeter-Konto -->
+    <div class="card accent-amber">
+      <div class="row between">
+        <div>
+          <div class="dim" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.7px">Gesammelte Höhenmeter</div>
+          <div style="font-size:32px;font-weight:700;letter-spacing:-1px;color:var(--amber)">${meters.toLocaleString('de-AT')} <span style="font-size:17px">Hm</span></div>
+        </div>
+        <div style="text-align:right">
+          <div class="dim" style="font-size:10.5px">Nächstes Ziel</div>
+          <div style="font-weight:600">${esc(summit.next.name)}</div>
+          <div class="dim" style="font-size:11.5px">noch ${summit.toGo.toLocaleString('de-AT')} Hm</div>
+        </div>
+      </div>
+      <div class="bar amber" style="margin-top:12px"><i style="width:${summit.progress * 100}%"></i></div>
+      <div class="dim" style="font-size:11.5px;margin-top:7px">${esc(summit.next.note)}</div>
+    </div>
+
+    <!-- Aktuelle Etappe -->
+    <div class="card flush accent-sky">
       <div class="hero">
         <div class="row">
-          <div class="badge">${day.id}</div>
+          <div class="badge" style="font-size:20px">${stage.icon}</div>
           <div class="grow">
-            <div style="font-size:19px;font-weight:600">${esc(day.title)}</div>
-            <div style="font-size:12.5px;color:var(--sky)">${esc(day.subtitle)}</div>
+            <div style="font-size:19px;font-weight:600">${esc(stage.title)}</div>
+            <div style="font-size:12.5px;color:var(--sky)">${esc(stage.subtitle)}</div>
           </div>
+          <span class="pill sky">Zyklus ${J.cycleNumber(state.progress)}</span>
         </div>
-        <div class="row" style="gap:22px;margin-top:14px">
-          <div><div style="font-size:17px;font-weight:600">${exs.length}</div><div class="dim" style="font-size:10.5px">Übungen</div></div>
-          <div><div style="font-size:17px;font-weight:600">${exs.reduce((s, e) => s + e.sets, 0)}</div><div class="dim" style="font-size:10.5px">Sätze</div></div>
-          <div><div style="font-size:17px;font-weight:600">~${estimateMinutes(exs)}</div><div class="dim" style="font-size:10.5px">Minuten</div></div>
-        </div>
+        ${statsHtml}
       </div>
       <div style="padding:18px">
-        ${ups.length ? `
-          <div style="color:var(--amber);font-weight:600;font-size:15px;margin-bottom:8px">
-            ↑ ${ups.length === 1 ? 'Heute wird aufgelastet' : `Heute wird ${ups.length}× aufgelastet`}</div>
-          ${ups.slice(0, 3).map((s) => `
-            <div class="row" style="padding:3px 0">
-              <span class="grow muted" style="font-size:13.5px">${esc(s.exercise.name)}</span>
-              ${s.previousHeadline ? `<span class="dim" style="font-size:12px">${esc(s.previousHeadline)} →</span>` : ''}
-              <b style="color:var(--amber)">${esc(s.headline)}</b>
-            </div>`).join('')}
-          <div style="height:14px"></div>`
-        : `<p class="muted" style="margin:0 0 14px;font-size:13.5px">
-             ${exs.slice(0, 4).map((e) => esc(e.name)).join(' · ')}${exs.length > 4 ? ' · …' : ''}</p>`}
-        <button class="btn primary" data-start="${day.id}">▶ Training starten</button>
-        <button class="link" data-goto-plan="${day.id}">Erst den Plan ansehen</button>
+        ${stage.kind === J.STAGE_KIND.STRENGTH && deload
+          ? `<div class="pill emerald" style="margin-bottom:10px">Entlastungswoche — bewusst leichter</div>` : ''}
+        ${upsHtml}
+        ${stage.hint ? `<p class="muted" style="margin:0 0 14px;font-size:13.5px">${esc(stage.hint)}</p>` : ''}
+        <button class="btn primary" data-stage-start="${stage.id}">▶ Etappe starten</button>
+        <div class="row" style="gap:8px;margin-top:8px">
+          ${stage.kind === J.STAGE_KIND.STRENGTH
+            ? `<button class="link" data-goto-plan="${stage.dayId}">Plan ansehen</button>` : ''}
+          <button class="link" data-stage-skip="${stage.id}">Überspringen</button>
+        </div>
       </div>
     </div>
 
+    <!-- Der Steig: kommende Etappen -->
+    <div class="section-title"><span>Der Steig</span><span>Etappe ${idx + 1}</span></div>
+    <div class="card" style="padding:14px">
+      ${[0, 1, 2, 3].map((offset) => {
+        const s = J.stageAt(idx + offset);
+        const locked = offset > 0;
+        return `<div class="path-row ${locked ? 'locked' : 'open'} ${offset === 3 ? 'last' : ''}">
+          <div class="dot">${locked ? '🔒' : s.icon}</div>
+          <div class="grow">
+            <div class="t">${esc(s.title)}</div>
+            <div class="m">${locked ? 'Wird frei, wenn die vorige Etappe steht' : esc(s.subtitle)}</div>
+          </div>
+          <span class="hm">+${s.meters}</span>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Bereitschaft -->
     <div class="card">
       <div class="row" style="gap:16px">
         <div class="ring">
@@ -375,29 +515,28 @@ function viewHome() {
     </div>
 
     <div class="tiles">
+      <div class="tile"><div class="val">${state.progress.filter((x) => !x.skipped).length}</div><div class="lbl">Etappen gegangen</div></div>
       <div class="tile"><div class="val">${streak}</div><div class="lbl">${streak === 1 ? 'Woche' : 'Wochen'} in Folge</div></div>
-      <div class="tile"><div class="val">${thisWeek}/${p.daysPerWeek}</div><div class="lbl">diese Woche</div></div>
-      <div class="tile"><div class="val">${state.sessions.length}</div><div class="lbl">Einheiten gesamt</div></div>
+      <div class="tile"><div class="val">${J.earnedBadges(badgeSnapshot()).length}</div><div class="lbl">Abzeichen</div></div>
     </div>
 
-    ${recent.length ? `
-      <div class="section-title"><span>Zuletzt trainiert</span></div>
-      ${recent.map((s) => {
-        const d = D.dayById(s.dayId);
-        const vol = D.volumeOf(s);
+    ${state.progress.length ? `
+      <div class="section-title"><span>Zuletzt gegangen</span></div>
+      ${state.progress.slice().reverse().slice(0, 4).map((pr) => {
+        const s = J.stageById(pr.stageId);
         return `<div class="card" style="padding:14px">
           <div class="row">
-            <div class="badge" style="width:36px;height:36px;font-size:15px">${esc(s.dayId)}</div>
+            <div class="badge" style="width:36px;height:36px;font-size:16px;${pr.skipped ? 'opacity:.4' : ''}">${s ? s.icon : '•'}</div>
             <div class="grow">
-              <div style="font-weight:600">${esc(d ? d.title : 'Einheit')}</div>
-              <div class="dim" style="font-size:12px">${relativeDay(s.startedAt, now)} · ${s.sets.length} Sätze · ${Math.round((s.finishedAt - s.startedAt) / 60000)} min</div>
+              <div style="font-weight:600;${pr.skipped ? 'color:var(--text-low)' : ''}">${esc(s ? s.title : 'Etappe')}</div>
+              <div class="dim" style="font-size:12px">${relativeDay(pr.at, now)}${pr.detail ? ' · ' + esc(pr.detail) : ''}${pr.skipped ? ' · übersprungen' : ''}</div>
             </div>
-            ${vol > 0 ? `<div class="muted" style="font-weight:600">${Math.round(vol)} kg</div>` : ''}
+            ${pr.skipped ? '' : `<div style="color:var(--amber);font-weight:600">+${pr.meters}</div>`}
           </div>
         </div>`;
       }).join('')}`
-    : `<div class="empty" style="margin-top:14px">Noch keine Einheit gespeichert. Die erste dient dazu,
-         deine Lasten zu finden — danach übernimmt die App das Steigern.</div>`}
+    : `<div class="empty" style="margin-top:14px">Noch keine Etappe gegangen. Die erste Krafteinheit
+         dient dazu, deine Lasten zu finden — danach übernimmt die App das Steigern.</div>`}
   </div>`;
 }
 
@@ -491,11 +630,55 @@ function viewProgress() {
   const now = Date.now();
   const sessions = state.sessions;
 
+  const snap = badgeSnapshot();
+  const earned = J.earnedBadges(snap).map((b) => b.id);
+  const badgesHtml = `
+    <div class="section-title"><span>Abzeichen</span><span>${earned.length} von ${J.BADGES.length}</span></div>
+    <div class="card">
+      <div class="badges">
+        ${J.BADGES.map((b) => {
+          const on = earned.includes(b.id);
+          return `<div class="badge-tile ${on ? 'on' : 'off'}" title="${esc(b.desc)}">
+            <div class="ic">${b.icon}</div>
+            <div class="n">${esc(b.name)}</div>
+            <div class="d">${esc(b.desc)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  const metersHtml = `
+    <div class="card accent-amber">
+      <div class="row between">
+        <div>
+          <div class="dim" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.7px">Höhenmeter</div>
+          <div style="font-size:28px;font-weight:700;color:var(--amber)">${snap.meters.toLocaleString('de-AT')} Hm</div>
+        </div>
+        <div style="text-align:right">
+          <div class="dim" style="font-size:10.5px">Erreicht</div>
+          <div style="font-weight:600">${J.summitProgress(snap.meters).reached.length} Gipfel</div>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        ${J.SUMMITS.map((s) => {
+          const on = snap.meters >= s.m;
+          return `<div class="row" style="padding:6px 0;${on ? '' : 'opacity:.45'}">
+            <span style="width:22px">${on ? '⛰️' : '·'}</span>
+            <span class="grow" style="font-size:13.5px;${on ? 'font-weight:600' : ''}">${esc(s.name)}</span>
+            <span class="dim" style="font-size:12px">${s.m.toLocaleString('de-AT')} Hm</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
   if (!sessions.length) {
     return `<div class="screen"><h1>Fortschritt</h1>
-      <p class="sub">Hier wird es spannend, sobald die erste Einheit drin ist.</p>
-      <div class="empty">Noch keine Daten. Nach der ersten Einheit siehst du hier deine Kurven,
-        nach der zweiten beginnt die App zu steigern.</div></div>`;
+      <p class="sub">${state.progress.length ? `${state.progress.filter((x) => !x.skipped).length} Etappen gegangen` : 'Hier wird es spannend, sobald die erste Etappe steht.'}</p>
+      ${metersHtml}
+      ${badgesHtml}
+      <div class="empty">Nach der ersten Krafteinheit erscheinen hier auch deine Kurven,
+        nach der zweiten beginnt die App zu steigern.</div>
+      <div style="height:80px"></div></div>`;
   }
 
   const trained = D.EXERCISES.filter((ex) => sessions.some((s) => s.sets.some((x) => x.exerciseId === ex.id)));
@@ -528,7 +711,10 @@ function viewProgress() {
   return `
   <div class="screen">
     <h1>Fortschritt</h1>
-    <p class="sub">${sessions.length} Einheiten · ${totalVol} kg bewegt</p>
+    <p class="sub">${state.progress.filter((x) => !x.skipped).length} Etappen · ${sessions.length} Einheiten · ${totalVol} kg bewegt</p>
+
+    ${metersHtml}
+    ${badgesHtml}
 
     <div class="card">
       <h2>Steig-Kennwerte</h2>
@@ -771,6 +957,149 @@ function viewWorkout() {
   </div></div>`;
 }
 
+// ---------------------------------------------------------------------------
+// Etappen ohne Gerät: Dehnen, Regeneration, Ausdauer
+// ---------------------------------------------------------------------------
+
+function startStage(stageId) {
+  const stage = J.stageById(stageId);
+  if (!stage) return;
+
+  if (stage.kind === J.STAGE_KIND.STRENGTH) {
+    startWorkout(stage.dayId);
+    return;
+  }
+  if (stage.kind === J.STAGE_KIND.ENDURANCE) {
+    activeStage = { stage, minutes: 30, meters: 0 };
+  } else {
+    activeStage = {
+      stage,
+      items: stage.mobilityIds.map((id) => ({ id, done: false })),
+    };
+  }
+  render();
+}
+
+function viewStage() {
+  const { stage } = activeStage;
+
+  if (stage.kind === J.STAGE_KIND.ENDURANCE) {
+    return `
+    <div id="workout"><div class="wrap">
+      <div class="wo-head">
+        <div class="row">
+          <button id="stage-cancel" style="font-size:20px;padding:4px 8px;color:var(--text-mid)">✕</button>
+          <div class="grow">
+            <div style="font-size:17px;font-weight:600">${esc(stage.title)}</div>
+            <div style="font-size:12.5px;color:var(--sky)">${esc(stage.subtitle)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card accent-sky" style="margin-top:14px">
+        <div style="font-size:40px;text-align:center;margin-bottom:6px">${stage.icon}</div>
+        <p class="muted" style="font-size:13.5px;text-align:center;margin:0">${esc(stage.hint)}</p>
+      </div>
+
+      <div class="card">
+        <h2>Was hast du gemacht?</h2>
+        <p class="dim" style="font-size:12.5px;margin:0 0 16px">Trag ein, was zusammengekommen ist — grob reicht.</p>
+        <div class="steppers">
+          ${stepper('Minuten', `${activeStage.minutes}`, 0, 'min')}
+          ${stepper('Höhenmeter', `${activeStage.meters}`, 0, 'hm')}
+        </div>
+        <p class="dim" style="font-size:12px;margin-top:14px">
+          Höhenmeter zählen zusätzlich zu den ${stage.meters} Hm der Etappe — flach unterwegs?
+          Dann lass sie einfach auf null.</p>
+      </div>
+
+      <button class="btn go" id="stage-finish" style="margin-top:6px">Etappe abschließen</button>
+      <button class="link" id="stage-skip-inline">Doch überspringen</button>
+      <div style="height:100px"></div>
+    </div></div>`;
+  }
+
+  // Dehn- und Regenerationsetappen
+  const done = activeStage.items.filter((i) => i.done).length;
+  const total = activeStage.items.length;
+  const holdNote = stage.longHold
+    ? 'Heute länger halten — 30 bis 90 Sekunden. Das beruhigt das Nervensystem und unterstützt die Erholung.'
+    : 'Jede Position ruhig 20 bis 30 Sekunden halten und dabei weiteratmen.';
+
+  return `
+  <div id="workout"><div class="wrap">
+    <div class="wo-head">
+      <div class="row">
+        <button id="stage-cancel" style="font-size:20px;padding:4px 8px;color:var(--text-mid)">✕</button>
+        <div class="grow">
+          <div style="font-size:17px;font-weight:600">${esc(stage.title)}</div>
+          <div style="font-size:12.5px;color:var(--sky)">${done} von ${total} erledigt</div>
+        </div>
+        <button id="stage-finish" style="color:var(--amber);font-weight:700;padding:6px 10px">Fertig</button>
+      </div>
+      <div class="bar" style="height:6px;margin-top:10px">
+        <i style="width:${total ? (done / total) * 100 : 0}%"></i></div>
+    </div>
+
+    <div class="card accent-emerald" style="margin-top:14px">
+      <p class="muted" style="font-size:13.5px;margin:0">${holdNote}</p>
+    </div>
+
+    ${activeStage.items.map((item, i) => {
+      const m = J.mobilityById(item.id);
+      const secs = stage.longHold ? Math.round(m.seconds * 1.6) : m.seconds;
+      return `<div class="set ${item.done ? 'done' : ''}">
+        <div class="row">
+          <div class="num">${i + 1}</div>
+          <div class="grow">
+            <div style="font-weight:600">${esc(m.name)}</div>
+            <div class="dim" style="font-size:12px">${secs} s${m.perSide ? ' pro Seite' : ''} · ${esc(m.zone)}</div>
+          </div>
+          <button class="tick" data-mob-done="${i}">✓</button>
+        </div>
+        <details class="info" style="margin-top:10px">
+          <summary>Ausführung &amp; Warum</summary>
+          <div class="info-block"><div class="h">So geht's</div><div class="b">${esc(m.cue)}</div></div>
+          <div class="info-block"><div class="h">Warum</div><div class="b">${esc(m.why)}</div></div>
+        </details>
+        ${item.done ? '' : `<button class="btn ghost small" style="margin-top:10px" data-mob-timer="${i}:${secs}">
+          ⏱ ${secs} s Timer starten</button>`}
+      </div>`;
+    }).join('')}
+
+    <button class="btn go" id="stage-finish2" style="margin-top:6px">Etappe abschließen</button>
+    <button class="link" id="stage-skip-inline">Doch überspringen</button>
+    <div style="height:100px"></div>
+  </div></div>`;
+}
+
+function finishStage() {
+  const { stage } = activeStage;
+  let detail = '';
+
+  if (stage.kind === J.STAGE_KIND.ENDURANCE) {
+    const extra = activeStage.meters;
+    detail = `${activeStage.minutes} min${extra ? ` · ${extra} Hm` : ''}`;
+    const total = stage.meters + extra;
+    activeStage = null;
+    stopRest();
+    completeStage({ ...stage, meters: total }, { detail });
+    return;
+  }
+
+  const done = activeStage.items.filter((i) => i.done).length;
+  if (done === 0) {
+    activeStage = null;
+    render();
+    toast('Etappe verworfen — es war keine Übung abgehakt.');
+    return;
+  }
+  detail = `${done} von ${activeStage.items.length} Übungen`;
+  activeStage = null;
+  stopRest();
+  completeStage(stage, { detail });
+}
+
 function stepper(label, value, setIndex, field) {
   return `<div class="stepper">
     <div class="lbl">${label}</div>
@@ -816,7 +1145,15 @@ function finishWorkout(note = '') {
     s.sessions.push(session);
     if (!s.profile.cycleStart) s.profile.cycleStart = now;
   });
-  toast(`Gespeichert: ${sets.length} Sätze in ${Math.max(1, Math.round((now - w.startedAt) / 60000))} Minuten. Stark!`);
+
+  // Die Krafteinheit ist zugleich die offene Etappe — abhaken und gutschreiben.
+  const stage = J.currentStage(state.progress);
+  const minutes = Math.max(1, Math.round((now - w.startedAt) / 60000));
+  if (stage.kind === J.STAGE_KIND.STRENGTH && stage.dayId === w.dayId) {
+    completeStage(stage, { detail: `${sets.length} Sätze · ${minutes} min` });
+  } else {
+    toast(`Gespeichert: ${sets.length} Sätze in ${minutes} Minuten. Stark!`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -884,7 +1221,7 @@ function render() {
     <div id="app">${view()}</div>
     <nav>${TABS.map((t) => `<button data-tab="${t.id}" class="${tab === t.id ? 'on' : ''}">
       <span class="ic">${t.icon}</span><span>${t.label}</span></button>`).join('')}</nav>
-    ${active ? viewWorkout() : ''}`;
+    ${active ? viewWorkout() : activeStage ? viewStage() : ''}`;
   if (restLeft > 0) drawRest();
   bindEvents();
 }
@@ -943,8 +1280,23 @@ function bindEvents() {
     };
   });
 
+  // Etappen starten und überspringen
+  document.querySelectorAll('[data-stage-start]').forEach((b) => {
+    b.onclick = () => startStage(b.dataset.stageStart);
+  });
+  document.querySelectorAll('[data-stage-skip]').forEach((b) => {
+    b.onclick = () => {
+      const stage = J.stageById(b.dataset.stageSkip);
+      if (!stage) return;
+      if (confirm(`„${stage.title}" überspringen?\n\nDie nächste Etappe wird frei, du bekommst aber keine Höhenmeter dafür.`)) {
+        completeStage(stage, { skipped: true });
+      }
+    };
+  });
+
   bindSettings();
   bindWorkout();
+  bindStage();
   document.querySelectorAll('[data-rest]').forEach((b) => {
     b.onclick = () => {
       const a = b.dataset.rest;
@@ -1008,6 +1360,63 @@ function bindSettings() {
       }
     };
     input.click();
+  };
+}
+
+function bindStage() {
+  if (!activeStage) return;
+  const { stage } = activeStage;
+
+  document.querySelectorAll('[data-mob-done]').forEach((b) => {
+    b.onclick = () => {
+      const i = +b.dataset.mobDone;
+      activeStage.items[i].done = !activeStage.items[i].done;
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-mob-timer]').forEach((b) => {
+    b.onclick = () => {
+      const [i, secs] = b.dataset.mobTimer.split(':').map(Number);
+      const m = J.mobilityById(activeStage.items[i].id);
+      // Beidseitige Dehnungen laufen zweimal — der Timer deckt beide Seiten ab.
+      startRest(m.perSide ? secs * 2 : secs);
+    };
+  });
+
+  // Ausdauer-Etappe: Minuten und Höhenmeter einstellen
+  document.querySelectorAll('[data-step]').forEach((b) => {
+    const [, field, dir] = b.dataset.step.split(':');
+    if (field !== 'min' && field !== 'hm') return;
+    b.onclick = () => {
+      const d = +dir;
+      if (field === 'min') activeStage.minutes = Math.max(0, activeStage.minutes + d * 5);
+      else activeStage.meters = Math.max(0, activeStage.meters + d * 50);
+      render();
+    };
+  });
+
+  const cancel = document.getElementById('stage-cancel');
+  if (cancel) cancel.onclick = () => {
+    if (confirm('Etappe verlassen? Der Fortschritt darin geht verloren.')) {
+      activeStage = null;
+      stopRest();
+      render();
+    }
+  };
+
+  ['stage-finish', 'stage-finish2'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.onclick = finishStage;
+  });
+
+  const skip = document.getElementById('stage-skip-inline');
+  if (skip) skip.onclick = () => {
+    if (confirm(`„${stage.title}" überspringen?\n\nDie nächste Etappe wird frei, du bekommst aber keine Höhenmeter dafür.`)) {
+      activeStage = null;
+      stopRest();
+      completeStage(stage, { skipped: true });
+    }
   };
 }
 

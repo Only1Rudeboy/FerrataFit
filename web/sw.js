@@ -7,14 +7,17 @@
  * Aktualisierungen still nach.
  */
 
-const CACHE = 'ferratafit-v1';
+// Version hochzählen, wenn sich Dateien ändern — dadurch wird der alte Cache verworfen.
+const CACHE = 'ferratafit-v2';
 const ASSETS = [
   './',
   './index.html',
   './app.css',
   './app.js',
   './data.js',
+  './journey.js',
   './icon.svg',
+  './icon-192.png',
   './manifest.webmanifest',
 ];
 

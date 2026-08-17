@@ -19,6 +19,13 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -28,6 +35,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import at.rudeboy.ferratafit.data.Journey
+import at.rudeboy.ferratafit.ui.screens.StageScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -71,11 +84,14 @@ private enum class Tab(val label: String, val icon: ImageVector) {
 private fun FerrataApp(vm: AppViewModel = viewModel()) {
     val state by vm.state.collectAsState()
     val active by vm.active.collectAsState()
+    val activeStage by vm.activeStage.collectAsState()
     val toast by vm.toast.collectAsState()
     val steps by vm.steps.collectAsState()
+    val freshBadges by vm.freshBadges.collectAsState()
 
     var tab by remember { mutableIntStateOf(0) }
     var planDayId by remember { mutableStateOf<String?>(null) }
+    var skipAsk by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(toast) {
@@ -131,7 +147,9 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                     Tab.HOME -> HomeScreen(
                         state = state,
                         steps = steps,
-                        onStartWorkout = { vm.startWorkout(it) },
+                        badgeCount = vm.badgeCount(),
+                        onStartStage = { vm.startStage(it) },
+                        onSkipStage = { skipAsk = it },
                         onOpenDay = { planDayId = it; tab = 1 }
                     )
                     Tab.PLAN -> PlanScreen(
@@ -140,7 +158,10 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onStartWorkout = { vm.startWorkout(it) },
                         onToggleExercise = { vm.toggleHiddenExercise(it) }
                     )
-                    Tab.PROGRESS -> ProgressScreen(state = state)
+                    Tab.PROGRESS -> ProgressScreen(
+                        state = state,
+                        earnedBadgeIds = vm.earnedBadgeIds()
+                    )
                     Tab.SETTINGS -> SettingsScreen(
                         state = state,
                         health = vm.health,
@@ -181,8 +202,104 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                 }
             }
         }
+
+        // Dehn-, Regenerations- und Ausdauer-Etappen liegen auf derselben Ebene.
+        AnimatedVisibility(
+            visible = activeStage != null,
+            enter = fadeIn() + slideInVertically { it / 4 },
+            exit = fadeOut() + slideOutVertically { it / 4 }
+        ) {
+            activeStage?.let { st ->
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    StageScreen(
+                        active = st,
+                        onToggleDrill = { vm.toggleDrill(it) },
+                        onAdjust = { min, m -> vm.adjustEndurance(min, m) },
+                        onFinish = { vm.finishStage() },
+                        onSkip = { vm.skipStage(st.stage.id) },
+                        onCancel = { vm.cancelStage() }
+                    )
+                }
+            }
+        }
+    }
+
+    // Rückfrage vor dem Überspringen — sonst ist die Etappe versehentlich weg.
+    skipAsk?.let { stageId ->
+        val stage = Journey.stage(stageId)
+        AlertDialog(
+            onDismissRequest = { skipAsk = null },
+            title = { Text("„${stage?.title ?: "Etappe"}\" überspringen?") },
+            text = {
+                Text(
+                    "Die nächste Etappe wird frei, du bekommst aber keine Höhenmeter dafür.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.skipStage(stageId); skipAsk = null }) {
+                    Text("Überspringen", color = Palette.Rose)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { skipAsk = null }) { Text("Zurück") }
+            }
+        )
+    }
+
+    // Neue Abzeichen bekommen einen eigenen Moment.
+    if (freshBadges.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { vm.clearFreshBadges() },
+            title = {
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        freshBadges.joinToString(" ") { it.icon },
+                        style = MaterialTheme.typography.displayMedium
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (freshBadges.size > 1) "Neue Abzeichen!" else "Neues Abzeichen!",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                }
+            },
+            text = {
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    freshBadges.forEach { b ->
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            b.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Palette.Amber
+                        )
+                        Text(
+                            b.desc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.TextMid,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { vm.clearFreshBadges() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Palette.Sky,
+                        contentColor = Palette.Ink
+                    )
+                ) { Text("Weiter") }
+            }
+        )
     }
 
     // Zurück-Geste: erst zurück auf „Heute“, statt die App zu schließen.
-    BackHandler(enabled = active == null && tab != 0) { tab = 0 }
+    BackHandler(enabled = active == null && activeStage == null && tab != 0) { tab = 0 }
 }

@@ -17,7 +17,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,9 +30,10 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun ProgressScreen(state: AppState) {
+fun ProgressScreen(state: AppState, earnedBadgeIds: Set<String>) {
     val now = System.currentTimeMillis()
     val sessions = state.sessions
+    val meters = Journey.totalMeters(state.progress)
     val trained = Catalog.exercises.filter { ex -> sessions.any { s -> s.sets.any { it.exerciseId == ex.id } } }
     var selected by remember(trained.size) {
         mutableStateOf(trained.firstOrNull { it.ferrataFocus >= 3 }?.id ?: trained.firstOrNull()?.id)
@@ -46,21 +49,133 @@ fun ProgressScreen(state: AppState) {
             Column(Modifier.padding(top = 6.dp)) {
                 Text("Fortschritt", style = MaterialTheme.typography.headlineLarge, color = Palette.TextHigh)
                 Text(
-                    if (sessions.isEmpty()) "Hier wird es spannend, sobald die erste Einheit drin ist."
-                    else "${sessions.size} Einheiten · ${Stats.totalVolume(sessions).toInt()} kg bewegt",
+                    if (sessions.isEmpty() && state.progress.isEmpty())
+                        "Hier wird es spannend, sobald die erste Etappe steht."
+                    else buildString {
+                        append("${state.progress.count { !it.skipped }} Etappen")
+                        if (sessions.isNotEmpty()) {
+                            append(" · ${sessions.size} Einheiten")
+                            append(" · ${Stats.totalVolume(sessions).toInt()} kg bewegt")
+                        }
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = Palette.TextMid
                 )
             }
         }
 
+        // ---------- Höhenmeter und Gipfel ----------
+        item {
+            FfCard(accent = Palette.Amber) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f)) {
+                        Text("HÖHENMETER", style = MaterialTheme.typography.labelSmall, color = Palette.TextLow)
+                        Text(
+                            "$meters Hm",
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = Palette.Amber
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Erreicht", style = MaterialTheme.typography.labelSmall, color = Palette.TextLow)
+                        Text(
+                            "${Journey.summitProgress(meters).reached.size} Gipfel",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Palette.TextHigh
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Journey.summits.forEach { s ->
+                    val reached = meters >= s.meters
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (reached) "⛰️" else "·",
+                            modifier = Modifier.width(24.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            s.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (reached) Palette.TextHigh else Palette.TextLow,
+                            fontWeight = if (reached) FontWeight.SemiBold else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "${s.meters} Hm",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.TextLow
+                        )
+                    }
+                }
+            }
+        }
+
+        // ---------- Abzeichen ----------
+        item { SectionTitle("Abzeichen", "${earnedBadgeIds.size} von ${Journey.badges.size}") }
+        item {
+            FfCard {
+                Journey.badges.chunked(3).forEach { row ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        row.forEach { b ->
+                            val on = b.id in earnedBadgeIds
+                            Column(
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        if (on) Palette.Amber.copy(alpha = 0.09f) else Palette.SurfaceHigh
+                                    )
+                                    .border(
+                                        1.dp,
+                                        if (on) Palette.Amber.copy(alpha = 0.4f) else Color.Transparent,
+                                        RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(vertical = 12.dp, horizontal = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    b.icon,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    modifier = Modifier.alpha(if (on) 1f else 0.25f)
+                                )
+                                Spacer(Modifier.height(5.dp))
+                                Text(
+                                    b.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (on) Palette.TextHigh else Palette.TextLow,
+                                    textAlign = TextAlign.Center,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    b.desc,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Palette.TextLow,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                        // Restplätze auffüllen, damit die Kacheln gleich breit bleiben
+                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            }
+        }
+
         if (sessions.isEmpty()) {
             item {
                 EmptyHint(
-                    "Noch keine Daten. Nach der ersten Einheit siehst du hier deine Kurven, " +
+                    "Nach der ersten Krafteinheit erscheinen hier auch deine Kurven, " +
                         "nach der zweiten beginnt die App zu steigern."
                 )
             }
+            item { Spacer(Modifier.height(80.dp)) }
             return@LazyColumn
         }
 

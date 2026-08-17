@@ -137,5 +137,9 @@ data class AppState(
     /** Zuletzt vorgeschlagene bzw. zuletzt verwendete Last je Übung. */
     val lastLoads: Map<String, Double> = emptyMap(),
     /** Übungen, die der Nutzer aus dem Plan geworfen hat. */
-    val hiddenExercises: Set<String> = emptySet()
+    val hiddenExercises: Set<String> = emptySet(),
+    /** Abgeschlossene Etappen in der Reihenfolge, in der sie gegangen wurden. */
+    val progress: List<StageLog> = emptyList(),
+    /** Bereits vergebene Abzeichen — gemerkt, damit neue erkennbar bleiben. */
+    val seenBadges: Set<String> = emptySet()
 )

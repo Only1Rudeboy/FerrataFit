@@ -10,7 +10,14 @@ import at.rudeboy.ferratafit.data.ProgressionKind
 import at.rudeboy.ferratafit.data.Progression
 import at.rudeboy.ferratafit.data.Session
 import at.rudeboy.ferratafit.data.SetLog
+import at.rudeboy.ferratafit.data.Badge
+import at.rudeboy.ferratafit.data.BadgeSnapshot
+import at.rudeboy.ferratafit.data.Journey
+import at.rudeboy.ferratafit.data.Stage
+import at.rudeboy.ferratafit.data.StageKind
+import at.rudeboy.ferratafit.data.StageLog
 import at.rudeboy.ferratafit.data.Station
+import at.rudeboy.ferratafit.data.Stats
 import at.rudeboy.ferratafit.data.Store
 import at.rudeboy.ferratafit.data.Suggestion
 import at.rudeboy.ferratafit.health.HealthBridge
@@ -54,6 +61,21 @@ data class ActiveWorkout(
 /** Kurze Rückmeldung nach dem Speichern (Snackbar). */
 data class Toast(val message: String, val isError: Boolean = false)
 
+/** Eine Dehnübung, während die Etappe läuft. */
+data class ActiveDrill(val id: String, val done: Boolean = false)
+
+/** Eine laufende Etappe ohne Gerät: Dehnen, Regeneration oder Ausdauer. */
+data class ActiveStage(
+    val stage: Stage,
+    val drills: List<ActiveDrill> = emptyList(),
+    /** Nur bei Ausdauer-Etappen belegt. */
+    val minutes: Int = 30,
+    val extraMeters: Int = 0
+) {
+    val doneCount: Int get() = drills.count { it.done }
+    val progress: Float get() = if (drills.isEmpty()) 0f else doneCount.toFloat() / drills.size
+}
+
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = Store(app)
@@ -70,8 +92,145 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _steps = MutableStateFlow<Long?>(null)
     val steps: StateFlow<Long?> = _steps.asStateFlow()
 
+    private val _activeStage = MutableStateFlow<ActiveStage?>(null)
+    val activeStage: StateFlow<ActiveStage?> = _activeStage.asStateFlow()
+
+    /** Frisch verdiente Abzeichen — die Oberfläche zeigt sie und meldet zurück. */
+    private val _freshBadges = MutableStateFlow<List<Badge>>(emptyList())
+    val freshBadges: StateFlow<List<Badge>> = _freshBadges.asStateFlow()
+
     fun clearToast() { _toast.value = null }
     fun notify(msg: String, error: Boolean = false) { _toast.value = Toast(msg, error) }
+    fun clearFreshBadges() { _freshBadges.value = emptyList() }
+
+    // ---------------- Etappen ----------------
+
+    /** Momentaufnahme für die Abzeichenprüfung. */
+    private fun badgeSnapshot(s: AppState = state.value): BadgeSnapshot {
+        // Wie oft wurde eine Übung tatsächlich aufgelastet?
+        val increases = Catalog.exercises.sumOf { ex ->
+            val loads = s.sessions
+                .filter { session -> session.sets.any { it.exerciseId == ex.id } }
+                .sortedBy { it.startedAt }
+                .map { session -> session.sets.filter { it.exerciseId == ex.id }.maxOf { it.weightKg } }
+            loads.filterIndexed { i, v -> i > 0 && v > loads[i - 1] }.size
+        }
+        fun best(id: String, sel: (SetLog) -> Int): Int =
+            s.sessions.flatMap { it.sets }.filter { it.exerciseId == id }.maxOfOrNull(sel) ?: 0
+
+        return BadgeSnapshot(
+            progress = s.progress,
+            meters = Journey.totalMeters(s.progress),
+            weeklyStreak = Stats.weeklyStreak(s.sessions, System.currentTimeMillis()),
+            increases = increases,
+            bestDeadhang = best("deadhang") { it.seconds },
+            bestPullup = best("pullup") { it.reps }
+        )
+    }
+
+    /**
+     * Etappe abschließen: Höhenmeter gutschreiben und neue Abzeichen melden.
+     * [skipped] verbucht sie als gegangen, aber ohne Gutschrift.
+     */
+    private fun completeStage(
+        stage: Stage,
+        skipped: Boolean = false,
+        detail: String = "",
+        metersOverride: Int? = null
+    ) {
+        val before = Journey.earnedBadges(badgeSnapshot()).map { it.id }.toSet()
+
+        store.update { s ->
+            s.copy(
+                progress = s.progress + StageLog(
+                    stageId = stage.id,
+                    kind = stage.kind.name,
+                    meters = if (skipped) 0 else (metersOverride ?: stage.meters),
+                    at = System.currentTimeMillis(),
+                    skipped = skipped,
+                    detail = detail
+                )
+            )
+        }
+
+        val after = Journey.earnedBadges(badgeSnapshot())
+        val fresh = after.filterNot { it.id in before }
+        if (fresh.isNotEmpty()) {
+            store.update { s -> s.copy(seenBadges = after.map { it.id }.toSet()) }
+            _freshBadges.value = fresh
+        } else if (skipped) {
+            notify("Etappe übersprungen — die nächste ist frei.")
+        } else {
+            val m = metersOverride ?: stage.meters
+            notify("+$m Hm · ${Journey.completionLine(stage.kind)}")
+        }
+    }
+
+    /** Startet die offene Etappe — je nach Art als Krafteinheit oder als Dehn-/Ausdauerblock. */
+    fun startStage(stageId: String) {
+        val stage = Journey.stage(stageId) ?: return
+        when (stage.kind) {
+            StageKind.STRENGTH -> stage.dayId?.let { startWorkout(it) }
+            StageKind.ENDURANCE -> _activeStage.value = ActiveStage(stage)
+            else -> _activeStage.value = ActiveStage(
+                stage = stage,
+                drills = stage.mobilityIds.map { ActiveDrill(it) }
+            )
+        }
+    }
+
+    fun skipStage(stageId: String) {
+        val stage = Journey.stage(stageId) ?: return
+        _activeStage.value = null
+        completeStage(stage, skipped = true)
+    }
+
+    fun toggleDrill(index: Int) {
+        val a = _activeStage.value ?: return
+        val drills = a.drills.toMutableList()
+        val d = drills.getOrNull(index) ?: return
+        drills[index] = d.copy(done = !d.done)
+        _activeStage.value = a.copy(drills = drills)
+    }
+
+    fun adjustEndurance(minutes: Int? = null, meters: Int? = null) {
+        val a = _activeStage.value ?: return
+        _activeStage.value = a.copy(
+            minutes = minutes?.coerceAtLeast(0) ?: a.minutes,
+            extraMeters = meters?.coerceAtLeast(0) ?: a.extraMeters
+        )
+    }
+
+    fun cancelStage() { _activeStage.value = null }
+
+    /** Wie viele Abzeichen sind verdient? Für die Kachel auf der Startseite. */
+    fun badgeCount(): Int = Journey.earnedBadges(badgeSnapshot()).size
+
+    /** Welche Abzeichen sind verdient? Für die Übersicht im Fortschritt. */
+    fun earnedBadgeIds(): Set<String> = Journey.earnedBadges(badgeSnapshot()).map { it.id }.toSet()
+
+    fun finishStage() {
+        val a = _activeStage.value ?: return
+        val stage = a.stage
+
+        if (stage.kind == StageKind.ENDURANCE) {
+            val detail = buildString {
+                append("${a.minutes} min")
+                if (a.extraMeters > 0) append(" · ${a.extraMeters} Hm")
+            }
+            _activeStage.value = null
+            completeStage(stage, detail = detail, metersOverride = stage.meters + a.extraMeters)
+            return
+        }
+
+        if (a.doneCount == 0) {
+            _activeStage.value = null
+            notify("Etappe verworfen — es war keine Übung abgehakt.")
+            return
+        }
+        _activeStage.value = null
+        completeStage(stage, detail = "${a.doneCount} von ${a.drills.size} Übungen")
+    }
 
     // ---------------- Profil ----------------
 
@@ -215,8 +374,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         _active.value = null
 
+        // Die Krafteinheit ist zugleich die offene Etappe — abhaken und gutschreiben.
         val duration = session.durationMin
-        notify("Gespeichert: ${logs.size} Sätze in $duration Minuten. Stark!")
+        val stage = Journey.current(state.value.progress)
+        if (stage.kind == StageKind.STRENGTH && stage.dayId == w.dayId) {
+            completeStage(stage, detail = "${logs.size} Sätze · $duration min")
+        } else {
+            notify("Gespeichert: ${logs.size} Sätze in $duration Minuten. Stark!")
+        }
 
         if (state.value.profile.healthConnectEnabled) {
             viewModelScope.launch {

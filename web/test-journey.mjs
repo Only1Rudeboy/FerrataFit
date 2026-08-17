@@ -1,0 +1,131 @@
+/**
+ * Prüft das Etappensystem: Freischaltung, Höhenmeter, Gipfel und Abzeichen.
+ *
+ * Aufruf:  node web/test-journey.mjs
+ */
+
+import * as J from './journey.js';
+
+let failed = 0;
+
+function check(name, actual, expected) {
+  const ok = JSON.stringify(actual) === JSON.stringify(expected);
+  if (!ok) failed++;
+  console.log(`${ok ? '  ✓' : '  ✗'} ${name}${ok ? '' : `\n      erwartet: ${JSON.stringify(expected)}\n      war:      ${JSON.stringify(actual)}`}`);
+}
+
+/** Baut einen Fortschritt aus n abgeschlossenen Etappen. */
+const walk = (n, opts = {}) =>
+  Array.from({ length: n }, (_, i) => {
+    const s = J.stageAt(i);
+    const skipped = (opts.skip || []).includes(i);
+    return { stageId: s.id, kind: s.kind, meters: skipped ? 0 : s.meters, at: 0, skipped, detail: '' };
+  });
+
+console.log('\nEtappensystem\n');
+
+// --- Reihenfolge und Freischaltung ---
+check('ohne Fortschritt steht Etappe 1 an', J.currentStage([]).id, 'S1');
+check('nach einer Etappe steht die zweite an', J.currentStage(walk(1)).id, 'S2');
+check('nach sieben Etappen beginnt der Zyklus von vorne', J.currentStage(walk(7)).id, 'S1');
+check('Zyklusnummer zaehlt ab eins', [
+  J.cycleNumber([]), J.cycleNumber(walk(6)), J.cycleNumber(walk(7)), J.cycleNumber(walk(14)),
+], [1, 1, 2, 3]);
+
+// --- Aufbau des Zyklus ---
+const kinds = J.STAGES.map((s) => s.kind);
+check('sieben Etappen im Zyklus', J.STAGES.length, 7);
+check('drei davon sind Krafteinheiten', kinds.filter((k) => k === J.STAGE_KIND.STRENGTH).length, 3);
+check('zwischen zwei Krafteinheiten liegt immer eine leichtere', (() => {
+  for (let i = 0; i < kinds.length; i++) {
+    const a = kinds[i], b = kinds[(i + 1) % kinds.length];
+    if (a === J.STAGE_KIND.STRENGTH && b === J.STAGE_KIND.STRENGTH) return false;
+  }
+  return true;
+})(), true);
+check('jede Krafteinheit zeigt auf einen Trainingstag', (() => {
+  return J.STAGES.filter((s) => s.kind === J.STAGE_KIND.STRENGTH)
+    .every((s) => J.dayForStage(s) !== null && J.dayForStage(s) !== undefined);
+})(), true);
+check('jede Dehn-Etappe hat Uebungen hinterlegt', (() => {
+  return J.STAGES
+    .filter((s) => s.kind === J.STAGE_KIND.MOBILITY || s.kind === J.STAGE_KIND.RECOVERY)
+    .every((s) => Array.isArray(s.mobilityIds) && s.mobilityIds.length >= 4
+      && s.mobilityIds.every((id) => J.mobilityById(id)));
+})(), true);
+
+// --- Höhenmeter ---
+const fullCycle = J.STAGES.reduce((n, s) => n + s.meters, 0);
+check('ein vollstaendiger Zyklus ergibt die Summe aller Etappen', J.totalMeters(walk(7)), fullCycle);
+check('uebersprungene Etappen zaehlen nicht', J.totalMeters(walk(7, { skip: [0, 2] })),
+  fullCycle - J.STAGES[0].meters - J.STAGES[2].meters);
+check('ohne Fortschritt null Hoehenmeter', J.totalMeters([]), 0);
+
+// --- Gipfel ---
+const sp0 = J.summitProgress(0);
+check('am Anfang ist der erste Gipfel das Ziel', [sp0.next.m, sp0.reached.length], [J.SUMMITS[0].m, 0]);
+const sp = J.summitProgress(1000);
+check('bei 1000 Hm sind die ersten beiden Gipfel erreicht', sp.reached.length, 2);
+check('Restweg wird korrekt gerechnet', sp.toGo, sp.next.m - 1000);
+check('Gipfel sind aufsteigend sortiert',
+  J.SUMMITS.every((s, i) => i === 0 || s.m > J.SUMMITS[i - 1].m), true);
+
+// --- Abzeichen ---
+const emptySnap = {
+  progress: [], sessions: [], meters: 0, weeklyStreak: 0, increases: 0,
+  best: { deadhang: 0, pullup: 0, plank: 0 },
+};
+check('ohne Fortschritt kein Abzeichen', J.earnedBadges(emptySnap).length, 0);
+
+const oneStage = { ...emptySnap, progress: walk(1), meters: 120 };
+check('erste Etappe vergibt "Losgegangen"',
+  J.earnedBadges(oneStage).map((b) => b.id), ['first_stage']);
+
+const strong = {
+  ...emptySnap,
+  progress: walk(14),
+  meters: 3000,
+  weeklyStreak: 5,
+  increases: 3,
+  best: { deadhang: 65, pullup: 6, plank: 90 },
+};
+const ids = J.earnedBadges(strong).map((b) => b.id);
+check('fortgeschrittener Stand vergibt die passenden Abzeichen', [
+  ids.includes('hang30'), ids.includes('hang60'), ids.includes('pullup1'),
+  ids.includes('pullup5'), ids.includes('first_week'), ids.includes('streak4'),
+  ids.includes('summit1'), ids.includes('first_increase'), ids.includes('no_skip_cycle'),
+], [true, true, true, true, true, true, true, true, true]);
+
+const skipped = { ...strong, progress: walk(14, { skip: [13] }) };
+check('"Lueckenlos" faellt weg, sobald im letzten Zyklus etwas fehlt',
+  J.earnedBadges(skipped).map((b) => b.id).includes('no_skip_cycle'), false);
+
+check('jedes Abzeichen hat Symbol, Name und Beschreibung',
+  J.BADGES.every((b) => b.icon && b.name && b.desc && typeof b.check === 'function'), true);
+check('Abzeichen-Kennungen sind eindeutig',
+  new Set(J.BADGES.map((b) => b.id)).size, J.BADGES.length);
+
+// --- Sprüche ---
+check('Spruch bleibt ueber den Tag stabil', (() => {
+  const t = 1_700_000_000_000;
+  return J.quoteOfDay(t).text === J.quoteOfDay(t + 3600_000).text;
+})(), true);
+check('Spruch wechselt am naechsten Tag', (() => {
+  const t = 1_700_000_000_000;
+  return J.quoteOfDay(t).text !== J.quoteOfDay(t + 86400_000).text;
+})(), true);
+check('jede Etappenart hat einen Abschlusssatz',
+  Object.values(J.STAGE_KIND).every((k) => typeof J.completionLine(k) === 'string'
+    && J.completionLine(k).length > 10), true);
+
+// --- Dehnkatalog ---
+check('Dehnuebungen sind vollstaendig beschrieben',
+  J.MOBILITY.every((m) => m.id && m.name && m.zone && m.cue && m.why
+    && m.seconds >= 20 && m.seconds <= 90), true);
+check('Dehn-Kennungen sind eindeutig',
+  new Set(J.MOBILITY.map((m) => m.id)).size, J.MOBILITY.length);
+check('Unterarme sind abgedeckt — die wichtigste Zone am Steig',
+  J.MOBILITY.some((m) => m.zone === 'Unterarme'), true);
+
+console.log(`\n${failed === 0 ? '✓ Alle Prüfungen bestanden' : `✗ ${failed} Prüfung(en) fehlgeschlagen`}\n`);
+process.exit(failed === 0 ? 0 : 1);
