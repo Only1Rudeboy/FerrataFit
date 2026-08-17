@@ -10,7 +10,7 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 <div align="center">
 
-[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.0" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
+[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.2" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
 
 </div>
 
@@ -23,14 +23,17 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   — im Browser öffnen und über „App installieren" bzw. „Zum Home-Bildschirm hinzufügen"
   wie eine App verwenden. Läuft dank Service Worker auch ohne Netz.
 
-| Heute | Training | Dehnen | Fortschritt |
+| Heute | Anleitung | Dehnen | Fortschritt |
 |---|---|---|---|
-| ![Startbildschirm](docs/screenshots/heute.png) | ![Trainingsansicht](docs/screenshots/training.png) | ![Dehn-Etappe](docs/screenshots/dehnen.png) | ![Fortschritt](docs/screenshots/fortschritt.png) |
+| ![Startbildschirm](docs/screenshots/heute.png) | ![Übungsanleitung](docs/screenshots/anleitung.png) | ![Dehn-Etappe](docs/screenshots/dehnen.png) | ![Fortschritt](docs/screenshots/fortschritt.png) |
 
 ## ✨ Funktionen
 
 - **Etappen statt Trainingstage** — jeder Tag hat eine Aufgabe. Erst wenn sie steht,
   wird die nächste frei
+- **Vollständige Anleitung zu jeder Übung** — Aufbau, nummerierter Ablauf, typische
+  Fehler, Zählweise, leichtere und schwerere Varianten. Dazu ein Videoverweis, falls
+  Text allein nicht reicht
 - **Automatische Gewichtsvorschläge** — die App erkennt, wann aufgelastet wird, und
   zeigt `40 kg → 45 kg` samt Begründung
 - **Höhenmeter als Fortschritt** — jede Etappe bringt welche, die Summe führt über
@@ -144,14 +147,14 @@ Service Worker für den Offline-Betrieb. Veröffentlicht über GitHub Pages dire
 diesem Repository; lokal genügt `cd web && python3 -m http.server 8765`.
 
 Beide Varianten teilen dieselbe Trainings- und Etappenlogik. Damit sie nicht
-auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **74 Prüfungen insgesamt**:
+auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **85 Prüfungen insgesamt**:
 
 ```bash
 node web/test-progression.mjs    # 13 Prüfungen: Gewichtssteigerung
-node web/test-journey.mjs        # 28 Prüfungen: Etappen, Höhenmeter, Abzeichen
+node web/test-journey.mjs        # 34 Prüfungen: Etappen, Höhenmeter, Abzeichen, Anleitungen
 ```
 
-Für die Android-Seite (33 Prüfungen):
+Für die Android-Seite (38 Prüfungen):
 
 ```bash
 cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
@@ -165,17 +168,19 @@ cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
 FerrataFit/
 ├── android/          Android-App (Kotlin, Jetpack Compose)
 │   ├── app/src/main/java/…/data/     Übungskatalog, Progression, Etappen, Speicherung
-│   │   ├── Catalog.kt                Übungen und Split
+│   │   ├── Exercises.kt              Übungskatalog mit Ausführungsanleitungen
+│   │   ├── Catalog.kt                Split und Zusammenstellung
 │   │   ├── Progression.kt            Gewichtssteigerung
 │   │   └── Journey.kt                Etappen, Dehnkatalog, Höhenmeter, Abzeichen
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
-│   ├── app/src/test/                 33 Tests
+│   ├── app/src/test/                 38 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
-│   ├── data.js                       Übungen und Progression
+│   ├── exercises.js                  Übungskatalog mit Ausführungsanleitungen
+│   ├── data.js                       Split und Progression
 │   ├── journey.js                    Etappen, Dehnkatalog, Höhenmeter, Abzeichen
-│   └── test-*.mjs                    41 Tests
+│   └── test-*.mjs                    47 Tests
 └── docs/             Trainingswissen und Screenshots
 ```
 

@@ -67,8 +67,24 @@ data class Exercise(
     /** kg-Schritt bei WEIGHT/REPS, Sekunden-Schritt bei TIME. */
     val increment: Double,
     val ferrataFocus: Int,
+    /** Kurzfassung für die enge Anzeige. */
     val cue: String,
-    val why: String
+    val why: String,
+    /** Was du brauchst und wie du dich hinstellst. */
+    val setup: String = "",
+    /** Der Bewegungsablauf, Schritt für Schritt. */
+    val steps: List<String> = emptyList(),
+    /** Was typischerweise schiefgeht. */
+    val mistakes: List<String> = emptyList(),
+    /** Wie Wiederholungen gezählt werden — nur wo es nicht offensichtlich ist. */
+    val counting: String = "",
+    /** Leichtere oder schwerere Ausführung. */
+    val variant: String = "",
+    /**
+     * Suchbegriff für YouTube. Bewusst eine Suche statt einer festen Video-Kennung:
+     * einzelne Videos verschwinden, eine Suche liefert immer aktuelle Treffer.
+     */
+    val video: String = ""
 )
 
 /** Ein geloggter Satz. */

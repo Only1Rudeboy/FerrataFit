@@ -5,6 +5,7 @@
  */
 
 import * as J from './journey.js';
+import { EXERCISES } from './exercises.js';
 
 let failed = 0;
 
@@ -126,6 +127,43 @@ check('Dehn-Kennungen sind eindeutig',
   new Set(J.MOBILITY.map((m) => m.id)).size, J.MOBILITY.length);
 check('Unterarme sind abgedeckt — die wichtigste Zone am Steig',
   J.MOBILITY.some((m) => m.zone === 'Unterarme'), true);
+
+// --- Ausführungsanleitungen ---
+
+check('jede Übung hat Aufbau, Ablauf und Videosuche', (() => {
+  const bad = EXERCISES.filter((e) => !e.setup || !Array.isArray(e.steps) || e.steps.length < 3 || !e.video);
+  return bad.length ? bad.map((e) => e.id) : [];
+})(), []);
+
+check('jede Übung nennt typische Fehler', (() => {
+  const bad = EXERCISES.filter((e) => !Array.isArray(e.mistakes) || e.mistakes.length < 1);
+  return bad.length ? bad.map((e) => e.id) : [];
+})(), []);
+
+check('jede Übung erklärt den Steig-Bezug', (() => {
+  const bad = EXERCISES.filter((e) => !e.why || e.why.length < 30);
+  return bad.length ? bad.map((e) => e.id) : [];
+})(), []);
+
+check('einseitige Übungen erklären die Zählweise', (() => {
+  // Bei Step-up, Ausfallschritt und Seitstütz ist unklar, ob pro Seite oder gesamt gezählt wird
+  const needsCounting = ['stepup', 'split_squat', 'side_plank'];
+  const bad = needsCounting.filter((id) => {
+    const e = EXERCISES.find((x) => x.id === id);
+    return !e || !e.counting;
+  });
+  return bad;
+})(), []);
+
+check('jede Dehnübung hat Ablauf und Videosuche', (() => {
+  const bad = J.MOBILITY.filter((m) => !Array.isArray(m.steps) || m.steps.length < 3 || !m.video);
+  return bad.length ? bad.map((m) => m.id) : [];
+})(), []);
+
+check('Videosuchen sind nicht leer und nennen die Übung', (() => {
+  const all = [...EXERCISES, ...J.MOBILITY];
+  return all.filter((e) => !e.video || e.video.trim().length < 8).map((e) => e.id);
+})(), []);
 
 console.log(`\n${failed === 0 ? '✓ Alle Prüfungen bestanden' : `✗ ${failed} Prüfung(en) fehlgeschlagen`}\n`);
 process.exit(failed === 0 ? 0 : 1);

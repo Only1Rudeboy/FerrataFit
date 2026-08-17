@@ -248,7 +248,7 @@ fun WorkoutScreen(
                         Icon(Icons.Filled.Info, null, tint = Palette.Sky, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            "Ausführung & Warum",
+                            "Wie geht die Übung?",
                             style = MaterialTheme.typography.labelLarge,
                             color = Palette.Sky
                         )
@@ -264,11 +264,17 @@ fun WorkoutScreen(
                         enter = fadeIn() + expandVertically(),
                         exit = fadeOut() + shrinkVertically()
                     ) {
-                        Column(Modifier.padding(top = 8.dp)) {
-                            InfoBlock("So geht's", entry.exercise.cue)
-                            Spacer(Modifier.height(10.dp))
-                            InfoBlock("Warum am Steig", entry.exercise.why)
-                        }
+                        ExerciseGuide(
+                            setup = entry.exercise.setup,
+                            steps = entry.exercise.steps,
+                            cue = entry.exercise.cue,
+                            mistakes = entry.exercise.mistakes,
+                            counting = entry.exercise.counting,
+                            variant = entry.exercise.variant,
+                            why = entry.exercise.why,
+                            video = entry.exercise.video,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     }
                 }
             }
@@ -387,20 +393,6 @@ fun WorkoutScreen(
     }
 }
 
-@Composable
-private fun InfoBlock(title: String, body: String) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(Palette.SurfaceHigh)
-            .padding(13.dp)
-    ) {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.Sky)
-        Spacer(Modifier.height(5.dp))
-        Text(body, style = MaterialTheme.typography.bodyMedium, color = Palette.TextMid)
-    }
-}
 
 /** Eine Satzzeile mit Steppern — auf dem Handy schneller als Tastatureingabe. */
 @Composable

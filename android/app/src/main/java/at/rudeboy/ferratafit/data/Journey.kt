@@ -41,8 +41,15 @@ data class MobilityDrill(
     val seconds: Int,
     val perSide: Boolean,
     val zone: String,
+    /** Kurzfassung für die enge Anzeige. */
     val cue: String,
-    val why: String
+    val why: String,
+    /** Der Ablauf, Schritt für Schritt. */
+    val steps: List<String> = emptyList(),
+    /** Was typischerweise schiefgeht. */
+    val mistakes: List<String> = emptyList(),
+    /** Suchbegriff für YouTube — eine Suche statt fester Kennung, damit nichts veraltet. */
+    val video: String = ""
 )
 
 /** Eine Etappe im Wochenzyklus. */
@@ -110,68 +117,295 @@ object Journey {
      */
     val mobility: List<MobilityDrill> = listOf(
         MobilityDrill(
-            "forearm_flexor", "Unterarm-Beuger dehnen", 30, true, "Unterarme",
-            "Arm strecken, Handfläche nach vorne, Finger mit der anderen Hand sanft zu dir ziehen.",
-            "Die Griffmuskulatur verkürzt durch jedes Hängen und Ziehen. Diese Dehnung ist die " +
-                "wichtigste Gegenmaßnahme gegen Ellbogenbeschwerden."
+            id = "forearm_flexor",
+            name = "Unterarm-Beuger dehnen",
+            seconds = 30, perSide = true,
+            zone = "Unterarme",
+            cue =
+                "Arm strecken, Handfläche nach vorne, Finger mit der anderen Hand sanft zu dir " +
+                "ziehen.",
+            why =
+                "Die Griffmuskulatur verkürzt durch jedes Hängen und Ziehen. Diese Dehnung ist " +
+                "die wichtigste Gegenmaßnahme gegen Ellbogenbeschwerden.",
+            steps = listOf(
+
+                    "Arm auf Schulterhöhe nach vorne strecken, Handfläche zeigt nach vorne wie beim " +
+                    "Stopp-Zeichen.",
+                "Mit der anderen Hand die Finger fassen und sanft zu dir ziehen.",
+                "Der Arm bleibt gestreckt. Du spürst die Dehnung an der Innenseite des Unterarms.",
+                "Halten, ruhig atmen, dann die Seite wechseln."
+            ),
+            mistakes = listOf(
+                "Ruckartig ziehen. Die Dehnung wird langsam aufgebaut.",
+                "Den Ellbogen beugen — dann geht die Dehnung verloren."
+            ),
+            video = "Unterarm dehnen Beuger Übung"
         ),
         MobilityDrill(
-            "forearm_extensor", "Unterarm-Strecker dehnen", 30, true, "Unterarme",
-            "Arm strecken, Handrücken nach unten, Hand sanft nach innen ziehen.",
-            "Gegenspieler zur Griffmuskulatur. Beide zusammen halten das Ellbogengelenk im Gleichgewicht."
+            id = "forearm_extensor",
+            name = "Unterarm-Strecker dehnen",
+            seconds = 30, perSide = true,
+            zone = "Unterarme",
+            cue = "Arm strecken, Handrücken nach unten, Hand sanft nach innen ziehen.",
+            why =
+                "Gegenspieler zur Griffmuskulatur. Beide zusammen halten das Ellbogengelenk im " +
+                "Gleichgewicht.",
+            steps = listOf(
+                "Arm nach vorne strecken, Handrücken zeigt nach unten, Finger hängen locker.",
+
+                    "Mit der anderen Hand über den Handrücken fassen und die Hand sanft zu dir und " +
+                    "nach innen ziehen.",
+                "Die Dehnung liegt jetzt auf der Oberseite des Unterarms.",
+                "Halten, dann Seite wechseln."
+            ),
+            mistakes = listOf(
+                "Zu fest ziehen. Es soll ziehen, nicht schmerzen."
+            ),
+            video = "Unterarm Strecker dehnen Übung"
         ),
         MobilityDrill(
-            "chest_doorway", "Brustdehnung im Türrahmen", 30, true, "Brust & Schulter",
-            "Unterarm an den Rahmen, Ellbogen auf Schulterhöhe, Oberkörper langsam wegdrehen.",
-            "Öffnet die Brust gegen den Rundrücken, den Rucksacktragen und Drückübungen begünstigen."
+            id = "chest_doorway",
+            name = "Brustdehnung im Türrahmen",
+            seconds = 30, perSide = true,
+            zone = "Brust & Schulter",
+            cue = "Unterarm an den Rahmen, Ellbogen auf Schulterhöhe, Oberkörper langsam wegdrehen.",
+            why =
+                "Öffnet die Brust gegen den Rundrücken, den Rucksacktragen und Drückübungen " +
+                "begünstigen.",
+            steps = listOf(
+                "In einen Türrahmen stellen, Unterarm seitlich an den Rahmen legen.",
+                "Der Ellbogen ist etwa auf Schulterhöhe, der Winkel im Arm rund 90 Grad.",
+
+                    "Einen kleinen Schritt nach vorne machen und den Oberkörper langsam von der Hand " +
+                    "wegdrehen.",
+                "Die Dehnung liegt vorne in der Brust und Schulter. Halten, dann Seite wechseln."
+            ),
+            mistakes = listOf(
+                "Zu weit vorschieben, bis es in der Schulter sticht. Ein deutliches Ziehen reicht.",
+                "Den Rücken ins Hohlkreuz drücken."
+            ),
+            video = "Brustdehnung Türrahmen Übung"
         ),
         MobilityDrill(
-            "lat_stretch", "Latissimus dehnen", 30, true, "Rücken",
-            "Hand an einer Stange über Kopf, Gesäß nach hinten schieben, Flanke lang machen.",
-            "Der Latissimus arbeitet bei jedem Zug am Steig. Verkürzt er, leidet die Schulterfreiheit über Kopf."
+            id = "lat_stretch",
+            name = "Latissimus dehnen",
+            seconds = 30, perSide = true,
+            zone = "Rücken",
+            cue = "Hand an einer Stange über Kopf, Gesäß nach hinten schieben, Flanke lang machen.",
+            why =
+                "Der Latissimus arbeitet bei jedem Zug am Steig. Verkürzt er, leidet die " +
+                "Schulterfreiheit über Kopf.",
+            steps = listOf(
+                "Beide Hände an einer Stange, Tischkante oder Türklinke etwa auf Hüft- bis Brusthöhe.",
+
+                    "Einen Schritt zurücktreten und das Gesäß nach hinten schieben, bis die Arme lang " +
+                    "sind.",
+                "Den Kopf zwischen die Arme sinken lassen, Rücken lang machen.",
+
+                    "Für mehr Wirkung leicht zu einer Seite verlagern — dann spürst du die Flanke " +
+                    "deutlicher."
+            ),
+            mistakes = listOf(
+                "Den Rücken rund machen. Die Wirbelsäule bleibt lang.",
+                "Die Schultern hochziehen."
+            ),
+            video = "Latissimus dehnen Übung Rücken"
         ),
         MobilityDrill(
-            "hip_flexor", "Hüftbeuger im Ausfallschritt", 30, true, "Hüfte",
-            "Tiefer Ausfallschritt, hinteres Knie am Boden, Becken nach vorne schieben, Gesäß anspannen.",
-            "Die Hüfte ist die kritischste Zone für hohe Tritte. Vom vielen Sitzen verkürzt der " +
-                "Hüftbeuger und bremst genau diese Bewegung."
+            id = "hip_flexor",
+            name = "Hüftbeuger im Ausfallschritt",
+            seconds = 30, perSide = true,
+            zone = "Hüfte",
+            cue =
+                "Tiefer Ausfallschritt, hinteres Knie am Boden, Becken nach vorne schieben, Gesäß " +
+                "anspannen.",
+            why =
+                "Die Hüfte ist die kritischste Zone für hohe Tritte. Vom vielen Sitzen verkürzt " +
+                "der Hüftbeuger und bremst genau diese Bewegung.",
+            steps = listOf(
+
+                    "In einen tiefen Ausfallschritt gehen und das hintere Knie auf dem Boden ablegen " +
+                    "(Matte oder Kissen drunter).",
+                "Oberkörper aufrecht aufrichten, Hände auf dem vorderen Knie oder in der Hüfte.",
+
+                    "Jetzt das Gesäß der hinteren Seite fest anspannen und das Becken leicht nach " +
+                    "vorne schieben.",
+
+                    "Die Dehnung liegt vorne in der Hüfte des hinteren Beins. Halten, dann Seite " +
+                    "wechseln."
+            ),
+            mistakes = listOf(
+
+                    "Ins Hohlkreuz gehen statt das Becken aufzurichten. Genau deshalb das Gesäß " +
+                    "anspannen — das kippt das Becken richtig.",
+                "Den Oberkörper nach vorne lehnen.",
+                "Das vordere Knie weit über die Fußspitze schieben."
+            ),
+            video = "Hüftbeuger dehnen Ausfallschritt Übung"
         ),
         MobilityDrill(
-            "pigeon", "Taubenstellung", 45, true, "Hüfte",
-            "Vorderes Bein angewinkelt ablegen, hinteres Bein lang, Oberkörper aufrecht oder abgelegt.",
-            "Öffnet die äußere Hüfte — das schafft Bewegungsspielraum für weite und hohe Tritte."
+            id = "pigeon",
+            name = "Taubenstellung",
+            seconds = 45, perSide = true,
+            zone = "Hüfte",
+            cue =
+                "Vorderes Bein angewinkelt ablegen, hinteres Bein lang, Oberkörper aufrecht oder " +
+                "abgelegt.",
+            why = "Öffnet die äußere Hüfte — das schafft Bewegungsspielraum für weite und hohe Tritte.",
+            steps = listOf(
+
+                    "Aus dem Vierfüßlerstand ein Bein nach vorne bringen und angewinkelt ablegen — " +
+                    "Knie hinter dem Handgelenk, Unterschenkel quer.",
+                "Das hintere Bein lang nach hinten strecken, Fußrücken liegt auf.",
+
+                    "Becken gerade halten und langsam absinken lassen. Bei Bedarf ein Kissen unter " +
+                    "die vordere Gesäßhälfte.",
+
+                    "Aufrecht bleiben oder den Oberkörper nach vorne ablegen. Halten, dann Seite " +
+                    "wechseln."
+            ),
+            mistakes = listOf(
+                "Das Becken zur Seite kippen lassen. Lieber ein Kissen unterlegen und gerade bleiben.",
+
+                    "Ins vordere Knie drücken, wenn es zwickt. Bei Knieproblemen lieber die Variante " +
+                    "im Liegen wählen."
+            ),
+            video = "Taubenstellung Pigeon Pose Hüfte dehnen"
         ),
         MobilityDrill(
-            "hamstring", "Oberschenkelrückseite dehnen", 30, true, "Beine",
-            "Bein gestreckt vor dir aufstellen, Hüfte nach hinten schieben, Rücken gerade lassen.",
-            "Verkürzte Rückseiten ziehen das Becken nach hinten und stehlen dir Höhe beim Tritt."
+            id = "hamstring",
+            name = "Oberschenkelrückseite dehnen",
+            seconds = 30, perSide = true,
+            zone = "Beine",
+            cue = "Bein gestreckt vor dir aufstellen, Hüfte nach hinten schieben, Rücken gerade lassen.",
+            why = "Verkürzte Rückseiten ziehen das Becken nach hinten und stehlen dir Höhe beim Tritt.",
+            steps = listOf(
+                "Ein Bein gestreckt nach vorne stellen, Ferse am Boden, Fußspitze zeigt nach oben.",
+
+                    "Das hintere Bein leicht beugen und das Gesäß nach hinten schieben — wie bei " +
+                    "einer Verbeugung aus der Hüfte.",
+                "Der Rücken bleibt gerade. Du spürst die Dehnung hinten im vorderen Oberschenkel.",
+                "Halten, dann Seite wechseln."
+            ),
+            mistakes = listOf(
+
+                    "Den Rücken runden und mit den Händen zum Fuß greifen. Die Bewegung kommt aus der " +
+                    "Hüfte, nicht aus dem Rücken.",
+                "Das vordere Knie überstrecken."
+            ),
+            video = "Oberschenkelrückseite dehnen Hamstring Übung"
         ),
         MobilityDrill(
-            "calf_wall", "Wadendehnung an der Wand", 30, true, "Waden",
-            "Fußballen an die Wand, Ferse am Boden, Hüfte nach vorne schieben.",
-            "Die Waden tragen dich stundenlang auf schmalen Klammern. Sie gehören zu den Zonen, " +
-                "die am schnellsten zumachen."
+            id = "calf_wall",
+            name = "Wadendehnung an der Wand",
+            seconds = 30, perSide = true,
+            zone = "Waden",
+            cue = "Fußballen an die Wand, Ferse am Boden, Hüfte nach vorne schieben.",
+            why =
+                "Die Waden tragen dich stundenlang auf schmalen Klammern. Sie gehören zu den " +
+                "Zonen, die am schnellsten zumachen.",
+            steps = listOf(
+                "Vor eine Wand stellen, beide Hände auf Schulterhöhe anlegen.",
+                "Einen Fuß nach hinten setzen, Bein gestreckt, Ferse fest am Boden.",
+                "Die Hüfte langsam nach vorne zur Wand schieben, bis es in der Wade zieht.",
+
+                    "Halten. Für die tiefere Wadenmuskulatur das hintere Knie leicht beugen und " +
+                    "nochmal halten.",
+                "Seite wechseln."
+            ),
+            mistakes = listOf(
+                "Die Ferse abheben. Sie bleibt am Boden, sonst dehnt nichts.",
+                "Den hinteren Fuß nach außen drehen. Die Fußspitze zeigt geradeaus."
+            ),
+            video = "Wadendehnung Wand Übung"
         ),
         MobilityDrill(
-            "thoracic", "Brustwirbelsäule mobilisieren", 40, false, "Rücken",
-            "Vierfüßlerstand, abwechselnd Rücken runden und sanft strecken (Katze–Kuh), ruhig atmen.",
-            "Eine bewegliche Brustwirbelsäule nimmt Druck von Schultern und Lendenwirbeln."
+            id = "thoracic",
+            name = "Brustwirbelsäule mobilisieren",
+            seconds = 40, perSide = false,
+            zone = "Rücken",
+            cue =
+                "Vierfüßlerstand, abwechselnd Rücken runden und sanft strecken (Katze–Kuh), ruhig " +
+                "atmen.",
+            why = "Eine bewegliche Brustwirbelsäule nimmt Druck von Schultern und Lendenwirbeln.",
+            steps = listOf(
+                "In den Vierfüßlerstand gehen: Hände unter den Schultern, Knie unter der Hüfte.",
+
+                    "Einatmen und dabei den Rücken sanft ins leichte Hohlkreuz sinken lassen, Brust " +
+                    "öffnen, Blick leicht nach vorne (Kuh).",
+                "Ausatmen und den Rücken Wirbel für Wirbel nach oben runden, Kinn zur Brust (Katze).",
+                "Im Atemrhythmus wechseln, langsam und ohne Endanschlag."
+            ),
+            mistakes = listOf(
+                "Zu schnell wechseln. Jede Position folgt einem vollen Atemzug.",
+                "Nur im unteren Rücken bewegen. Die Bewegung soll durch die ganze Wirbelsäule laufen."
+            ),
+            video = "Katze Kuh Übung Brustwirbelsäule mobilisieren"
         ),
         MobilityDrill(
-            "child_pose", "Kindshaltung", 60, false, "Rücken & Schultern",
-            "Fersensitz, Oberkörper ablegen, Arme lang nach vorne, tief in den Rücken atmen.",
-            "Streckt den ganzen Rücken und beruhigt nach der Belastung. Guter Abschluss jeder Einheit."
+            id = "child_pose",
+            name = "Kindshaltung",
+            seconds = 60, perSide = false,
+            zone = "Rücken & Schultern",
+            cue = "Fersensitz, Oberkörper ablegen, Arme lang nach vorne, tief in den Rücken atmen.",
+            why =
+                "Streckt den ganzen Rücken und beruhigt nach der Belastung. Guter Abschluss jeder " +
+                "Einheit.",
+            steps = listOf(
+                "In den Fersensitz gehen, Knie etwa hüftbreit oder weiter auseinander.",
+                "Den Oberkörper nach vorne ablegen, Arme lang nach vorne strecken.",
+                "Die Stirn auf dem Boden oder einem Kissen ablegen.",
+                "Tief in den Rücken atmen und mit jeder Ausatmung etwas weiter sinken."
+            ),
+            mistakes = listOf(
+                "Die Schultern hochziehen. Sie sinken Richtung Boden.",
+
+                    "Erzwingen, wenn die Fersen nicht erreicht werden — dann ein Kissen zwischen " +
+                    "Waden und Oberschenkel legen."
+            ),
+            video = "Kindshaltung Balasana Dehnübung"
         ),
         MobilityDrill(
-            "neck", "Nacken lösen", 25, true, "Nacken",
-            "Kopf zur Seite neigen, Schulter bewusst unten lassen, mit der Hand leicht nachhelfen.",
-            "Der Nacken verspannt beim Sichern und beim Blick nach oben an der Wand."
+            id = "neck",
+            name = "Nacken lösen",
+            seconds = 25, perSide = true,
+            zone = "Nacken",
+            cue =
+                "Kopf zur Seite neigen, Schulter bewusst unten lassen, mit der Hand leicht " +
+                "nachhelfen.",
+            why = "Der Nacken verspannt beim Sichern und beim Blick nach oben an der Wand.",
+            steps = listOf(
+                "Aufrecht sitzen oder stehen, Schultern bewusst nach unten sinken lassen.",
+                "Den Kopf langsam zu einer Seite neigen, Ohr Richtung Schulter.",
+                "Die Hand derselben Seite kann leicht am Kopf nachhelfen — ohne zu ziehen.",
+                "Die gegenüberliegende Schulter bleibt unten. Halten, dann Seite wechseln."
+            ),
+            mistakes = listOf(
+                "Kräftig am Kopf ziehen. Das Eigengewicht der Hand reicht völlig.",
+                "Die Gegenschulter mit hochziehen — dann passiert nichts."
+            ),
+            video = "Nacken dehnen Übung Verspannung"
         ),
         MobilityDrill(
-            "wrist_circles", "Handgelenke kreisen", 30, false, "Handgelenke",
-            "Finger verschränken, langsam in beide Richtungen kreisen, dann Hände öffnen und schließen.",
-            "Bringt Durchblutung in die Handgelenke — die tragen am Steig alles."
-        )
+            id = "wrist_circles",
+            name = "Handgelenke kreisen",
+            seconds = 30, perSide = false,
+            zone = "Handgelenke",
+            cue =
+                "Finger verschränken, langsam in beide Richtungen kreisen, dann Hände öffnen und " +
+                "schließen.",
+            why = "Bringt Durchblutung in die Handgelenke — die tragen am Steig alles.",
+            steps = listOf(
+                "Die Finger beider Hände ineinander verschränken.",
+                "Langsam große Kreise mit den Handgelenken ziehen, erst in die eine Richtung.",
+                "Nach der Hälfte die Richtung wechseln.",
+                "Zum Abschluss die Hände mehrmals fest zur Faust schließen und wieder weit öffnen."
+            ),
+            mistakes = listOf(
+                "Zu schnell kreisen. Es geht um Durchblutung, nicht um Tempo."
+            ),
+            video = "Handgelenke mobilisieren Aufwärmen Übung"
+        ),
     )
 
     fun drill(id: String): MobilityDrill? = mobility.firstOrNull { it.id == id }

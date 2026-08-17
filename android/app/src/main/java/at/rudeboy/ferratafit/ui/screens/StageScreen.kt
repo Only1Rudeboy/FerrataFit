@@ -184,6 +184,9 @@ fun StageScreen(
                             perSide = drill.perSide,
                             cue = drill.cue,
                             why = drill.why,
+                            steps = drill.steps,
+                            mistakes = drill.mistakes,
+                            video = drill.video,
                             done = item.done,
                             onToggle = { onToggleDrill(i) },
                             onTimer = {
@@ -278,6 +281,9 @@ private fun DrillRow(
     perSide: Boolean,
     cue: String,
     why: String,
+    steps: List<String>,
+    mistakes: List<String>,
+    video: String,
     done: Boolean,
     onToggle: () -> Unit,
     onTimer: () -> Unit
@@ -350,7 +356,7 @@ private fun DrillRow(
         ) {
             Icon(Icons.Filled.Info, null, tint = Palette.Sky, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Ausführung & Warum", style = MaterialTheme.typography.labelLarge, color = Palette.Sky)
+            Text("Wie geht die Übung?", style = MaterialTheme.typography.labelLarge, color = Palette.Sky)
             Spacer(Modifier.weight(1f))
             Icon(Icons.Filled.ExpandMore, null, tint = Palette.Sky, modifier = Modifier.size(18.dp))
         }
@@ -359,11 +365,15 @@ private fun DrillRow(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            Column(Modifier.padding(top = 8.dp)) {
-                InfoPanel("So geht's", cue)
-                Spacer(Modifier.height(10.dp))
-                InfoPanel("Warum", why)
-            }
+            ExerciseGuide(
+                steps = steps,
+                cue = cue,
+                mistakes = mistakes,
+                why = why,
+                whyLabel = "Warum",
+                video = video,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
 
         if (!done) {
@@ -381,20 +391,6 @@ private fun DrillRow(
     }
 }
 
-@Composable
-private fun InfoPanel(title: String, body: String) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(Palette.SurfaceHigh)
-            .padding(13.dp)
-    ) {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.Sky)
-        Spacer(Modifier.height(5.dp))
-        Text(body, style = MaterialTheme.typography.bodyMedium, color = Palette.TextMid)
-    }
-}
 
 /** Plus-Minus-Feld, wie im Trainingsbildschirm. */
 @Composable

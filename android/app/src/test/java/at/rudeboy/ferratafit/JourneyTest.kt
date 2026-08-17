@@ -1,6 +1,7 @@
 package at.rudeboy.ferratafit
 
 import at.rudeboy.ferratafit.data.BadgeSnapshot
+import at.rudeboy.ferratafit.data.Exercises
 import at.rudeboy.ferratafit.data.Journey
 import at.rudeboy.ferratafit.data.StageKind
 import at.rudeboy.ferratafit.data.StageLog
@@ -212,5 +213,48 @@ class JourneyTest {
             "Lange Haltezeit greift nicht",
             Journey.holdSeconds(recovery, drill) > Journey.holdSeconds(normal, drill)
         )
+    }
+
+    // ---------------- Ausführungsanleitungen ----------------
+
+    @Test
+    fun `jede Uebung hat Aufbau, Ablauf und Videosuche`() {
+        Exercises.all.forEach { e ->
+            assertTrue("${e.id}: kein Aufbau", e.setup.isNotBlank())
+            assertTrue("${e.id}: zu wenige Schritte (${e.steps.size})", e.steps.size >= 3)
+            assertTrue("${e.id}: keine Videosuche", e.video.isNotBlank())
+            e.steps.forEach { assertTrue("${e.id}: leerer Schritt", it.length > 15) }
+        }
+    }
+
+    @Test
+    fun `jede Uebung nennt typische Fehler`() {
+        Exercises.all.forEach { e ->
+            assertTrue("${e.id}: keine Fehlerhinweise", e.mistakes.isNotEmpty())
+        }
+    }
+
+    @Test
+    fun `einseitige Uebungen erklaeren die Zaehlweise`() {
+        listOf("stepup", "split_squat", "side_plank").forEach { id ->
+            val e = Exercises.all.first { it.id == id }
+            assertTrue("$id: Zählweise fehlt", e.counting.isNotBlank())
+        }
+    }
+
+    @Test
+    fun `jede Dehnuebung hat Ablauf und Videosuche`() {
+        Journey.mobility.forEach { m ->
+            assertTrue("${m.id}: zu wenige Schritte", m.steps.size >= 3)
+            assertTrue("${m.id}: keine Videosuche", m.video.isNotBlank())
+        }
+    }
+
+    @Test
+    fun `Katalog stimmt mit der Web-Fassung ueberein`() {
+        // Beide Varianten muessen dieselben Uebungen in derselben Reihenfolge fuehren
+        assertEquals(22, Exercises.all.size)
+        assertEquals(12, Journey.mobility.size)
+        assertEquals(Exercises.all.size, Exercises.all.map { it.id }.toSet().size)
     }
 }

@@ -213,6 +213,60 @@ const adviceColor = (a) => ({
   START: 'var(--violet)', HOLD: 'var(--sky)',
 }[a] || 'var(--sky)');
 
+/**
+ * Die vollständige Anleitung zu einer Übung — Aufbau, Ablauf, typische Fehler
+ * und ein Verweis auf ein Video. Wird im Training wie in den Dehn-Etappen genutzt.
+ *
+ * `item` braucht mindestens `why`; alles andere ist optional, damit auch knapp
+ * beschriebene Einträge sauber gerendert werden.
+ */
+function guideHtml(item, opts = {}) {
+  const parts = [];
+
+  if (item.setup) {
+    parts.push(`<div class="info-block"><div class="h">Aufbau</div>
+      <div class="b">${esc(item.setup)}</div></div>`);
+  }
+
+  if (item.steps?.length) {
+    parts.push(`<div class="info-block"><div class="h">Ablauf</div>
+      <ol class="guide-steps">${item.steps.map((s) => `<li>${esc(s)}</li>`).join('')}</ol></div>`);
+  } else if (item.cue) {
+    parts.push(`<div class="info-block"><div class="h">So geht's</div>
+      <div class="b">${esc(item.cue)}</div></div>`);
+  }
+
+  if (item.mistakes?.length) {
+    parts.push(`<div class="info-block warn"><div class="h">Achte darauf</div>
+      <ul class="guide-list">${item.mistakes.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>`);
+  }
+
+  if (item.counting) {
+    parts.push(`<div class="info-block"><div class="h">Zählweise</div>
+      <div class="b">${esc(item.counting)}</div></div>`);
+  }
+
+  if (item.variant) {
+    parts.push(`<div class="info-block"><div class="h">Leichter oder schwerer</div>
+      <div class="b">${esc(item.variant)}</div></div>`);
+  }
+
+  if (item.why && opts.showWhy !== false) {
+    parts.push(`<div class="info-block"><div class="h">${opts.whyLabel || 'Warum am Steig'}</div>
+      <div class="b">${esc(item.why)}</div></div>`);
+  }
+
+  if (item.video) {
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(item.video)}`;
+    parts.push(`<a class="video-link" href="${url}" target="_blank" rel="noopener noreferrer">
+      <span class="play">▶</span>
+      <span class="txt"><b>Video ansehen</b><br><span class="dim">Öffnet YouTube · „${esc(item.video)}"</span></span>
+    </a>`);
+  }
+
+  return parts.join('');
+}
+
 /** Fortschrittsring als SVG — 270° Bogen, wie in der Android-Variante. */
 function ringSvg(progress, color = 'var(--sky)') {
   const r = 50, c = 2 * Math.PI * r, sweep = c * 0.75;
@@ -615,8 +669,7 @@ function exerciseRow(ex, sug, hidden) {
         ${hidden ? '🚫' : '👁'}</button>
     </div>
     <div class="detail" style="display:none">
-      <div class="muted">${esc(ex.cue)}</div>
-      <div class="why">${esc(ex.why)}</div>
+      ${guideHtml(ex)}
       ${sug ? `<div class="rs">${esc(sug.reason)}</div>` : ''}
     </div>
   </div>`;
@@ -847,7 +900,7 @@ function viewSettings() {
       <p class="muted" style="font-size:13.5px">Bleibt der Fortschritt über drei Einheiten aus, nimmt
         die App bewusst etwa zehn Prozent zurück. Bei Halteübungen wie dem Dead Hang kommen fünf
         Sekunden dazu; ab einer Minute lohnt Zusatzgewicht mehr als noch längeres Hängen.</p>
-      <p class="dim" style="font-size:10.5px;margin-bottom:0">FerrataFit Web · Version 1.1 · Alle Daten bleiben in diesem Browser</p>
+      <p class="dim" style="font-size:10.5px;margin-bottom:0">FerrataFit Web · Version 1.2 · Alle Daten bleiben in diesem Browser</p>
     </div>
   </div>`;
 }
@@ -926,9 +979,8 @@ function viewWorkout() {
       </div>
       <p class="reason">${esc(entry.sug.reason)}</p>
       <details class="info">
-        <summary>Ausführung &amp; Warum</summary>
-        <div class="info-block"><div class="h">So geht's</div><div class="b">${esc(ex.cue)}</div></div>
-        <div class="info-block"><div class="h">Warum am Steig</div><div class="b">${esc(ex.why)}</div></div>
+        <summary>Wie geht die Übung?</summary>
+        ${guideHtml(ex)}
       </details>
     </div>
 
@@ -1058,9 +1110,8 @@ function viewStage() {
           <button class="tick" data-mob-done="${i}">✓</button>
         </div>
         <details class="info" style="margin-top:10px">
-          <summary>Ausführung &amp; Warum</summary>
-          <div class="info-block"><div class="h">So geht's</div><div class="b">${esc(m.cue)}</div></div>
-          <div class="info-block"><div class="h">Warum</div><div class="b">${esc(m.why)}</div></div>
+          <summary>Wie geht die Übung?</summary>
+          ${guideHtml(m, { whyLabel: 'Warum' })}
         </details>
         ${item.done ? '' : `<button class="btn ghost small" style="margin-top:10px" data-mob-timer="${i}:${secs}">
           ⏱ ${secs} s Timer starten</button>`}
