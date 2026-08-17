@@ -83,6 +83,10 @@ fun SettingsScreen(
             }
         }
 
+        // ---------------- App-Aktualisierung ----------------
+        item { SectionTitle("App-Aktualisierung") }
+        item { UpdateCard(onNotify = onNotify) }
+
         // ---------------- Samsung Health ----------------
         item { SectionTitle("Samsung Health") }
         item {
@@ -406,7 +410,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "FerrataFit · Version 1.2 · Alle Daten bleiben auf dem Gerät",
+                    "FerrataFit · Version 1.3 · Alle Daten bleiben auf dem Gerät",
                     style = MaterialTheme.typography.labelSmall,
                     color = Palette.TextLow
                 )

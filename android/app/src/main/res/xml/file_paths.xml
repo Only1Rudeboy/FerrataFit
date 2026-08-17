@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!--
+      Die heruntergeladene Fassung landet im Zwischenspeicher der App. Von dort
+      reicht der FileProvider sie an den Paketinstallierer weiter; Android räumt
+      den Ordner bei Platzmangel selbst auf.
+    -->
+    <cache-path name="updates" path="updates/" />
+</paths>

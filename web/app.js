@@ -10,6 +10,7 @@ import * as D from './data.js';
 import * as J from './journey.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
+const APP_VERSION = '1.3';
 
 const DEFAULT_STATE = {
   profile: {
@@ -883,6 +884,21 @@ function viewSettings() {
       </div>
     </div>
 
+    <div class="section-title"><span>App-Aktualisierung</span></div>
+    <div class="card accent-sky">
+      <p class="muted" style="font-size:13.5px;margin-top:0">Die Web-Variante frischt sich beim
+        Öffnen selbst auf. Warst du gerade offline oder hakt etwas, kannst du hier von Hand
+        nachladen.</p>
+      <div class="row between" style="margin:12px 0">
+        <span class="dim" style="font-size:12.5px">Installiert</span>
+        <span style="font-weight:600">Version ${APP_VERSION}</span>
+      </div>
+      <button class="btn ghost small" id="check-update">↻ Jetzt auffrischen</button>
+      <p class="dim" style="font-size:12px;margin:12px 0 0">Die Android-App kann sich selbst
+        aktualisieren — dort findest du unter „Mehr" eine Schaltfläche, die neue Fassungen
+        herunterlädt und installiert.</p>
+    </div>
+
     <div class="section-title"><span>Samsung Health</span></div>
     <div class="card">
       <p class="muted" style="font-size:13.5px;margin-top:0">Die Web-Variante kann nicht direkt mit
@@ -900,7 +916,7 @@ function viewSettings() {
       <p class="muted" style="font-size:13.5px">Bleibt der Fortschritt über drei Einheiten aus, nimmt
         die App bewusst etwa zehn Prozent zurück. Bei Halteübungen wie dem Dead Hang kommen fünf
         Sekunden dazu; ab einer Minute lohnt Zusatzgewicht mehr als noch längeres Hängen.</p>
-      <p class="dim" style="font-size:10.5px;margin-bottom:0">FerrataFit Web · Version 1.2 · Alle Daten bleiben in diesem Browser</p>
+      <p class="dim" style="font-size:10.5px;margin-bottom:0">FerrataFit Web · Version ${APP_VERSION} · Alle Daten bleiben in diesem Browser</p>
     </div>
   </div>`;
 }
@@ -1371,6 +1387,25 @@ function bindSettings() {
   };
   const tg = $('#set-target');
   if (tg) tg.onchange = () => update((s) => { s.profile.targetFerrataName = tg.value; });
+
+  const cu = $('#check-update');
+  if (cu) cu.onclick = async () => {
+    toast('Wird aufgefrischt…');
+    try {
+      // Zwischenspeicher leeren und den Service Worker neu holen, dann neu laden
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.update()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      setTimeout(() => location.reload(), 600);
+    } catch {
+      toast('Auffrischen fehlgeschlagen — lade die Seite von Hand neu.', true);
+    }
+  };
 
   const rc = $('#restart-cycle');
   if (rc) rc.onclick = () => {

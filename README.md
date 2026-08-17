@@ -10,7 +10,7 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 <div align="center">
 
-[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.2" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
+[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.3" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
 
 </div>
 
@@ -31,6 +31,8 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 - **Etappen statt Trainingstage** — jeder Tag hat eine Aufgabe. Erst wenn sie steht,
   wird die nächste frei
+- **Aktualisierung in der App** — prüft auf neue Fassungen, lädt sie herunter und
+  installiert sie. Kein Play Store nötig
 - **Vollständige Anleitung zu jeder Übung** — Aufbau, nummerierter Ablauf, typische
   Fehler, Zählweise, leichtere und schwerere Varianten. Dazu ein Videoverweis, falls
   Text allein nicht reicht
@@ -110,6 +112,22 @@ das ist greifbarer als eine abstrakte Punktzahl:
 Ein vollständiger Wochenzyklus bringt 570 Höhenmeter. Bei der Ausdauer-Etappe zählen
 deine echten Höhenmeter zusätzlich.
 
+## 🔄 Aktualisierung
+
+Die App liegt nicht im Play Store, also aktualisiert sie sich selbst: Unter **Mehr →
+App-Aktualisierung** prüft sie, ob eine neuere Fassung veröffentlicht wurde, zeigt die
+Neuerungen, lädt die Datei herunter und übergibt sie dem Paketinstallierer von Android.
+
+Beim ersten Mal fragt Android nach der Erlaubnis, Updates aus dieser App zu installieren —
+das ist eine einmalige Freigabe in den Systemeinstellungen.
+
+Dafür braucht die App Netzwerkzugriff. Der wird **ausschließlich** genutzt, um die
+Veröffentlichungsseite auf GitHub abzufragen und die neue Fassung zu laden. Trainingsdaten
+verlassen das Gerät nicht.
+
+Die Web-Variante frischt sich beim Öffnen von selbst auf; unter **Mehr** gibt es zusätzlich
+eine Schaltfläche, die den Zwischenspeicher leert und neu lädt.
+
 ## ⌚ Samsung Health
 
 Samsung bietet ein eigenes SDK an, das aber eine Partnerfreigabe voraussetzt und für
@@ -147,14 +165,14 @@ Service Worker für den Offline-Betrieb. Veröffentlicht über GitHub Pages dire
 diesem Repository; lokal genügt `cd web && python3 -m http.server 8765`.
 
 Beide Varianten teilen dieselbe Trainings- und Etappenlogik. Damit sie nicht
-auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **85 Prüfungen insgesamt**:
+auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **93 Prüfungen insgesamt**:
 
 ```bash
 node web/test-progression.mjs    # 13 Prüfungen: Gewichtssteigerung
 node web/test-journey.mjs        # 34 Prüfungen: Etappen, Höhenmeter, Abzeichen, Anleitungen
 ```
 
-Für die Android-Seite (38 Prüfungen):
+Für die Android-Seite (46 Prüfungen):
 
 ```bash
 cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
@@ -174,7 +192,8 @@ FerrataFit/
 │   │   └── Journey.kt                Etappen, Dehnkatalog, Höhenmeter, Abzeichen
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
-│   ├── app/src/test/                 38 Tests
+│   ├── app/src/main/java/…/update/   Selbstaktualisierung über GitHub
+│   ├── app/src/test/                 46 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
 │   ├── exercises.js                  Übungskatalog mit Ausführungsanleitungen

@@ -10,6 +10,17 @@
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
 
+    <!--
+      Netzwerk ausschliesslich fuer die Update-Pruefung: Die App fragt die
+      Veroeffentlichungen auf GitHub ab und laedt bei Bedarf die neue Fassung.
+      Es werden keine Trainingsdaten uebertragen — die bleiben auf dem Geraet.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Erlaubt, die heruntergeladene Fassung selbst zur Installation anzubieten. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Erlaubt das Erkennen der Health-Connect-App auf Android 11+ (Package Visibility). -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
@@ -56,5 +67,19 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+
+        <!--
+          Gibt die heruntergeladene Fassung an den Paketinstallierer weiter. Ab Android 7
+          duerfen Dateien nicht mehr als roher Pfad weitergereicht werden.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>
