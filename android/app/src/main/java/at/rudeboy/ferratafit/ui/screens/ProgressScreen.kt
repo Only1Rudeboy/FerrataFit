@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Timer
@@ -36,7 +37,8 @@ fun ProgressScreen(
     bodySyncing: Boolean,
     onSyncBody: () -> Unit,
     onAddBodyManual: (Double, Double?) -> Unit = { _, _ -> },
-    onImportBodyFile: (String) -> Unit = {}
+    onImportBodyFile: (String) -> Unit = {},
+    onEditSession: (String) -> Unit = {}
 ) {
     val now = System.currentTimeMillis()
     val sessions = state.sessions
@@ -352,6 +354,45 @@ fun ProgressScreen(
                                 modifier = Modifier.padding(horizontal = 8.dp)
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        // ---------- Einheiten zum Nachbearbeiten ----------
+        if (sessions.isNotEmpty()) {
+            item { SectionTitle("Einheiten", "antippen zum Korrigieren") }
+            items(sessions.sortedByDescending { it.startedAt }.take(15)) { s ->
+                val d = Catalog.days.firstOrNull { it.id == s.dayId }
+                FfCard(padding = 14.dp, onClick = { onEditSession(s.id) }) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(11.dp))
+                                .background(Palette.SurfaceHigh),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(s.dayId, color = Palette.Sky, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                d?.title ?: "Einheit",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Palette.TextHigh
+                            )
+                            Text(
+                                "${dateShort(s.startedAt)} · ${s.sets.size} Sätze" +
+                                    if (s.volumeKg > 0) " · ${s.volumeKg.toInt()} kg" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Palette.TextLow
+                            )
+                        }
+                        Icon(
+                            Icons.Filled.Edit, "Bearbeiten",
+                            tint = Palette.TextLow, modifier = Modifier.size(17.dp)
+                        )
                     }
                 }
             }

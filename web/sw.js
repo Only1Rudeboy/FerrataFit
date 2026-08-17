@@ -7,8 +7,10 @@
  * Aktualisierungen still nach.
  */
 
-// Version hochzählen, wenn sich Dateien ändern — dadurch wird der alte Cache verworfen.
-const CACHE = 'ferratafit-v5';
+// Beim Anheben der App-Version mit hochzählen — dann verwirft der Browser den alten
+// Bestand. Ein Import aus app.js ginge nicht: Ein klassischer Service Worker kennt
+// keine ES-Module.
+const CACHE = 'ferratafit-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -16,6 +18,7 @@ const ASSETS = [
   './app.js',
   './data.js',
   './exercises.js',
+  './bodyweight.js',
   './journey.js',
   './icon.svg',
   './icon-192.png',

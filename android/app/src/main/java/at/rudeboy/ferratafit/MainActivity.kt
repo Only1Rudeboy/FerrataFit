@@ -58,6 +58,7 @@ import at.rudeboy.ferratafit.ui.screens.HomeScreen
 import at.rudeboy.ferratafit.ui.screens.OnboardingScreen
 import at.rudeboy.ferratafit.ui.screens.PlanScreen
 import at.rudeboy.ferratafit.ui.screens.ProgressScreen
+import at.rudeboy.ferratafit.ui.screens.SessionEditScreen
 import at.rudeboy.ferratafit.ui.screens.SettingsScreen
 import at.rudeboy.ferratafit.ui.screens.WorkoutScreen
 
@@ -89,6 +90,7 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     val steps by vm.steps.collectAsState()
     val freshBadges by vm.freshBadges.collectAsState()
     val bodySyncing by vm.bodySyncing.collectAsState()
+    val editing by vm.editing.collectAsState()
 
     var tab by remember { mutableIntStateOf(0) }
     var planDayId by remember { mutableStateOf<String?>(null) }
@@ -170,7 +172,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         bodySyncing = bodySyncing,
                         onSyncBody = { vm.syncBody() },
                         onAddBodyManual = { kg, fat -> vm.addBodyManual(kg, fat) },
-                        onImportBodyFile = { vm.importBodyFile(it) }
+                        onImportBodyFile = { vm.importBodyFile(it) },
+                        onEditSession = { vm.startEditSession(it) }
                     )
                     Tab.SETTINGS -> SettingsScreen(
                         state = state,
@@ -179,6 +182,7 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onToggleStation = { vm.toggleStation(it) },
                         onSetHealthEnabled = { vm.setHealthEnabled(it) },
                         onSetAutoWeight = { vm.setAutoWeight(it) },
+                        onSetTravelMode = { vm.setTravelMode(it) },
                         onSyncBody = { vm.syncBody() },
                         onSyncAll = { vm.syncAllToHealth() },
                         onRestartCycle = {
@@ -210,6 +214,26 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onApplyToRemaining = { e, s -> vm.applyToRemaining(e, s) },
                         onFinish = { note -> vm.finishWorkout(note) },
                         onCancel = { vm.cancelWorkout() }
+                    )
+                }
+            }
+        }
+
+        // Das Nachbearbeiten legt sich ebenfalls über die Navigation.
+        AnimatedVisibility(
+            visible = editing != null,
+            enter = fadeIn() + slideInVertically { it / 4 },
+            exit = fadeOut() + slideOutVertically { it / 4 }
+        ) {
+            editing?.let { session ->
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    SessionEditScreen(
+                        session = session,
+                        onEditSet = { i, block -> vm.editSet(i, block) },
+                        onRemoveSet = { vm.removeSetFromEdit(it) },
+                        onSave = { vm.saveEdit() },
+                        onDelete = { vm.deleteSession(session.id) },
+                        onCancel = { vm.cancelEdit() }
                     )
                 }
             }
@@ -313,5 +337,5 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     }
 
     // Zurück-Geste: erst zurück auf „Heute“, statt die App zu schließen.
-    BackHandler(enabled = active == null && activeStage == null && tab != 0) { tab = 0 }
+    BackHandler(enabled = active == null && activeStage == null && editing == null && tab != 0) { tab = 0 }
 }

@@ -134,7 +134,12 @@ data class Profile(
     val onboarded: Boolean = false,
     val healthConnectEnabled: Boolean = false,
     /** Körpergewicht automatisch von der Waage übernehmen. */
-    val autoWeightFromScale: Boolean = true
+    val autoWeightFromScale: Boolean = true,
+    /**
+     * Unterwegs-Modus: Der Plan weicht auf Körpergewichtsübungen aus, weil kein Gerät
+     * erreichbar ist. Die Etappe zählt trotzdem voll.
+     */
+    val travelMode: Boolean = false
 )
 
 /** Ein Trainingstag im Split. */

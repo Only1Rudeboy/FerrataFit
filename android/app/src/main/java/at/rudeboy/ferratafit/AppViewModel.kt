@@ -9,6 +9,7 @@ import at.rudeboy.ferratafit.data.Profile
 import at.rudeboy.ferratafit.data.ProgressionKind
 import at.rudeboy.ferratafit.data.Progression
 import at.rudeboy.ferratafit.data.Session
+import at.rudeboy.ferratafit.data.SessionEdit
 import at.rudeboy.ferratafit.data.SetLog
 import at.rudeboy.ferratafit.data.Badge
 import at.rudeboy.ferratafit.data.Body
@@ -397,8 +398,100 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun deleteSession(id: String) = store.update { s ->
-        s.copy(sessions = s.sessions.filterNot { it.id == id })
+    // ---------------- Einheiten nachbearbeiten ----------------
+
+    /** Die Einheit, die gerade bearbeitet wird. */
+    private val _editing = MutableStateFlow<Session?>(null)
+    val editing: StateFlow<Session?> = _editing.asStateFlow()
+
+    fun startEditSession(id: String) {
+        _editing.value = state.value.sessions.firstOrNull { it.id == id }
+    }
+
+    fun cancelEdit() { _editing.value = null }
+
+    /** Ändert einen Satz in der Bearbeitung — noch ohne zu speichern. */
+    fun editSet(index: Int, block: (SetLog) -> SetLog) {
+        val session = _editing.value ?: return
+        val sets = session.sets.toMutableList()
+        val old = sets.getOrNull(index) ?: return
+        sets[index] = block(old)
+        _editing.value = session.copy(sets = sets)
+    }
+
+    /** Entfernt einen Satz aus der Bearbeitung. */
+    fun removeSetFromEdit(index: Int) {
+        val session = _editing.value ?: return
+        val sets = session.sets.toMutableList()
+        if (index !in sets.indices) return
+        sets.removeAt(index)
+        _editing.value = session.copy(sets = SessionEdit.renumber(sets))
+    }
+
+    /**
+     * Übernimmt die Bearbeitung.
+     *
+     * Der Zeitpunkt der Einheit bleibt unangetastet: Die Progressionslogik sortiert die
+     * Historie danach, und eine verschobene Einheit würde die 2-für-2-Regel durcheinander
+     * bringen. Der Etappen-Fortschritt bleibt ebenfalls stehen — die Etappe wurde ja
+     * gegangen, unabhängig davon, ob ein Wert später korrigiert wird.
+     */
+    fun saveEdit() {
+        val edited = _editing.value ?: return
+        if (!SessionEdit.isSaveable(edited)) {
+            notify("Ohne Sätze bleibt nichts übrig — lösch die Einheit lieber ganz.", true)
+            return
+        }
+        store.update { s ->
+            val sessions = SessionEdit.replace(s.sessions, edited)
+            s.copy(
+                sessions = sessions,
+                lastLoads = SessionEdit.recomputeLastLoads(sessions),
+                seenBadges = prunedBadges(s.copy(sessions = sessions))
+            )
+        }
+        _editing.value = null
+        notify("Einheit angepasst. Die Vorschläge rechnen ab sofort damit.")
+        pushToHealth(edited)
+    }
+
+    /**
+     * Löscht eine Einheit.
+     *
+     * Der Etappen-Eintrag bleibt bestehen — sonst rutschte der gesamte Wochenzyklus eine
+     * Etappe zurück, weil sich die offene Etappe aus der Zahl der gegangenen ergibt.
+     * Gegangen ist gegangen, auch wenn die Zahlen dazu falsch waren.
+     */
+    fun deleteSession(id: String) {
+        store.update { s ->
+            val sessions = SessionEdit.remove(s.sessions, id)
+            s.copy(
+                sessions = sessions,
+                lastLoads = SessionEdit.recomputeLastLoads(sessions),
+                seenBadges = prunedBadges(s.copy(sessions = sessions))
+            )
+        }
+        _editing.value = null
+        notify("Einheit gelöscht. Höhenmeter und Etappe bleiben dir erhalten.")
+    }
+
+    /**
+     * Abzeichen, die nach der Änderung noch verdient sind.
+     *
+     * Vergeben werden sie ohnehin bei jeder Anzeige neu berechnet; hier wird nur die
+     * Merkliste gekürzt, damit ein später wieder erreichtes Abzeichen erneut gefeiert wird.
+     */
+    private fun prunedBadges(s: AppState): Set<String> {
+        val stillEarned = Journey.earnedBadges(badgeSnapshot(s)).map { it.id }.toSet()
+        return s.seenBadges intersect stillEarned
+    }
+
+    /** Schiebt eine geänderte Einheit erneut zu Health Connect. */
+    private fun pushToHealth(session: Session) {
+        if (!state.value.profile.healthConnectEnabled) return
+        viewModelScope.launch {
+            health.writeSession(session, "FerrataFit · ${Catalog.day(session.dayId).title}")
+        }
     }
 
     // ---------------- Health Connect ----------------
@@ -480,6 +573,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _bodySyncing.value = false
             }
         }
+    }
+
+    /**
+     * Unterwegs-Modus schalten. Der Plan weicht dann auf Körpergewichtsübungen aus;
+     * die Geräte-Historie bleibt unangetastet und steht zu Hause unverändert bereit.
+     */
+    fun setTravelMode(enabled: Boolean) {
+        updateProfile { it.copy(travelMode = enabled) }
+        notify(
+            if (enabled) "Unterwegs-Modus an — der Plan kommt ohne Gerät aus."
+            else "Zurück am Gerät. Deine Lasten stehen unverändert bereit."
+        )
     }
 
     fun setAutoWeight(enabled: Boolean) {

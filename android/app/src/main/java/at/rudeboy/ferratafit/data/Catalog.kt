@@ -12,8 +12,18 @@ package at.rudeboy.ferratafit.data
  */
 object Catalog {
 
-    /** Der Katalog liegt in [Exercises] — hier bleiben Split und Zusammenstellung. */
-    val exercises: List<Exercise> get() = Exercises.all
+    /**
+     * Der vollständige Katalog: Geräteübungen und die Körpergewichts-Entsprechungen
+     * für unterwegs.
+     *
+     * Beide gehören zusammen, weil Verlauf, Bestleistungen und Progression über die
+     * Übungskennung laufen. Fehlte hier eine unterwegs trainierte Übung, verschwände
+     * sie aus der Statistik.
+     */
+    val exercises: List<Exercise> get() = Exercises.all + BodyweightExercises.all
+
+    /** Nur die Übungen, die am Gerät stattfinden. */
+    val gymExercises: List<Exercise> get() = Exercises.all
 
     fun byId(id: String): Exercise? = exercises.firstOrNull { it.id == id }
 
@@ -78,7 +88,16 @@ object PlanBuilder {
         "butterfly" to "pushup"
     )
 
+    /**
+     * Die Übungen eines Trainingstags.
+     *
+     * Im Unterwegs-Modus wird jede Geräteübung durch ihre Körpergewichts-Entsprechung
+     * ersetzt. Übungen, die ohnehin ohne Gerät gehen, bleiben unverändert — und was
+     * keinen Ersatz hat, fällt weg. So bleibt der Tag inhaltlich derselbe.
+     */
     fun exercisesFor(day: TrainingDay, profile: Profile, hidden: Set<String> = emptySet()): List<Exercise> {
+        if (profile.travelMode) return travelExercisesFor(day, hidden)
+
         val available = day.exerciseIds
             .mapNotNull { Catalog.byId(it) }
             .filter { it.station in profile.stations }
@@ -89,6 +108,23 @@ object PlanBuilder {
             if (available.any { it.id == primary }) drop += fallback
         }
         return available.filter { it.id !in drop }
+    }
+
+    /** Der Tagesplan ohne jedes Gerät. */
+    private fun travelExercisesFor(day: TrainingDay, hidden: Set<String>): List<Exercise> {
+        val out = LinkedHashMap<String, Exercise>()
+        day.exerciseIds.forEach { id ->
+            if (id in hidden) return@forEach
+            val original = Catalog.byId(id) ?: return@forEach
+            val replacement = when {
+                // Braucht kein Gerät — bleibt, wie es ist
+                original.station == Station.BODYWEIGHT -> original
+                else -> BodyweightExercises.substituteFor(id)
+            }
+            // Mehrere Geräteübungen können denselben Ersatz haben; jeder zählt nur einmal
+            if (replacement != null) out.putIfAbsent(replacement.id, replacement)
+        }
+        return out.values.toList()
     }
 
     /** Alle Übungen, die mit der aktuellen Ausstattung überhaupt trainierbar sind. */

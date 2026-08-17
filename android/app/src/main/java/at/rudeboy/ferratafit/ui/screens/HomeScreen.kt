@@ -175,7 +175,8 @@ fun HomeScreen(
                             Text(stage.title, style = MaterialTheme.typography.headlineSmall, color = Palette.TextHigh)
                             Text(stage.subtitle, style = MaterialTheme.typography.bodySmall, color = Palette.Sky)
                         }
-                        Pill("Zyklus ${Journey.cycleNumber(state.progress)}", Palette.Sky)
+                        if (p.travelMode) Pill("Unterwegs", Palette.Amber)
+                        else Pill("Zyklus ${Journey.cycleNumber(state.progress)}", Palette.Sky)
                     }
                     Spacer(Modifier.height(14.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -197,6 +198,15 @@ fun HomeScreen(
                 Column(Modifier.padding(18.dp)) {
                     if (stage.kind == StageKind.STRENGTH && deload) {
                         Pill("Entlastungswoche — bewusst leichter", Palette.Emerald)
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    if (stage.kind == StageKind.STRENGTH && p.travelMode) {
+                        Text(
+                            "Ohne Gerät: Die Übungen sind durch Körpergewichts-Entsprechungen " +
+                                "ersetzt. Die Etappe zählt genauso.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.Amber
+                        )
                         Spacer(Modifier.height(12.dp))
                     }
 

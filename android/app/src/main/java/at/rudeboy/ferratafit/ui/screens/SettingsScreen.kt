@@ -42,6 +42,7 @@ fun SettingsScreen(
     onToggleStation: (Station) -> Unit,
     onSetHealthEnabled: (Boolean) -> Unit,
     onSetAutoWeight: (Boolean) -> Unit,
+    onSetTravelMode: (Boolean) -> Unit,
     onSyncBody: () -> Unit,
     onSyncAll: () -> Unit,
     onRestartCycle: () -> Unit,
@@ -205,6 +206,53 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+        }
+
+        // ---------------- Unterwegs ----------------
+        item { SectionTitle("Unterwegs") }
+        item {
+            FfCard(accent = if (state.profile.travelMode) Palette.Amber else null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Ohne Gerät trainieren",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Palette.TextHigh
+                        )
+                        Text(
+                            if (state.profile.travelMode) "aktiv — der Plan kommt ohne Gerät aus"
+                            else "für Reisen, Urlaub, Hotelzimmer",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (state.profile.travelMode) Palette.Amber else Palette.TextLow
+                        )
+                    }
+                    Switch(
+                        checked = state.profile.travelMode,
+                        onCheckedChange = onSetTravelMode,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.Ink,
+                            checkedTrackColor = Palette.Amber
+                        )
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Jede Geräteübung wird durch ihre Entsprechung mit dem eigenen Körpergewicht " +
+                        "ersetzt — Latzug wird zu umgekehrtem Rudern am Tisch, Brustpresse zu " +
+                        "Liegestützen. Mehr als einen Stuhl, eine Tischkante und ein Handtuch " +
+                        "brauchst du nicht.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Palette.TextMid
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Die Etappe zählt dabei voll: Höhenmeter, Serie und Abzeichen laufen weiter. " +
+                        "Jede Übung führt ihre eigene Geschichte — deine Gerätelasten bleiben " +
+                        "unberührt und stehen nach der Reise unverändert bereit.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Palette.TextMid
+                )
             }
         }
 

@@ -21,8 +21,18 @@ export const STATIONS = {
 // Übungskatalog und Ausführungsanleitungen liegen in einer eigenen Datei,
 // damit diese hier auf Split und Progressionslogik beschränkt bleibt.
 // Importiert *und* re-exportiert, damit die Namen auch hier drin nutzbar sind.
-import { KIND, EXERCISES, byId, videoUrl } from './exercises.js';
-export { KIND, EXERCISES, byId, videoUrl };
+import { KIND, EXERCISES, videoUrl } from './exercises.js';
+import { BODYWEIGHT_EXERCISES, BODYWEIGHT_SUBSTITUTES } from './bodyweight.js';
+export { KIND, EXERCISES, videoUrl, BODYWEIGHT_EXERCISES, BODYWEIGHT_SUBSTITUTES };
+
+/**
+ * Der vollständige Katalog: Geräteübungen und die Körpergewichts-Entsprechungen für
+ * unterwegs. Beide gehören zusammen, weil Verlauf, Bestleistungen und Progression über
+ * die Übungskennung laufen — fehlte hier eine unterwegs trainierte Übung, verschwände
+ * sie aus der Statistik.
+ */
+export const ALL_EXERCISES = [...EXERCISES, ...BODYWEIGHT_EXERCISES];
+export const byId = (id) => ALL_EXERCISES.find((e) => e.id === id);
 
 export const DAYS = [
   {
