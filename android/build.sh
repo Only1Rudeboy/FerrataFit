@@ -1,10 +1,11 @@
 #!/bin/bash
 # FerrataFit für Android bauen.
 #
-# Aufruf aus WSL:  bash /mnt/c/Users/Rudeboy/Documents/FerrataFit/android/build.sh
+# Aufruf:  bash android/build.sh
 #
-# Der Quellcode liegt in Documents, die Zwischenergebnisse landen bewusst auf dem
-# Linux-Dateisystem — Gradle-Builds direkt auf /mnt/c sind um ein Vielfaches langsamer.
+# Das Skript findet seinen eigenen Ordner selbst und läuft daher von jedem Ort aus.
+# Die Zwischenergebnisse landen bewusst auf dem Linux-Dateisystem — unter WSL sind
+# Gradle-Builds direkt auf /mnt/c um ein Vielfaches langsamer.
 set -e
 
 ANDROID_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
