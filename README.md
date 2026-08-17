@@ -1,173 +1,155 @@
-# FerrataFit
+# 🏔 FerrataFit — Kraft für den Klettersteig
 
-Eine private Trainings-App für dein Multifunktionsgerät, ausgelegt auf **Allgemeinfitness,
-leichte Definition und vor allem bessere Leistung am Klettersteig**.
+Trainings-App für das eigene Multifunktionsgerät, ausgelegt auf **Allgemeinfitness,
+leichte Definition und bessere Leistung am Klettersteig** — als Android-App und Web-App.
+Keine Anmeldung, keine Datensammlung, kein Server. Alles bleibt auf dem Gerät.
 
-Die App kennt deinen Split, merkt sich jede Last und sagt dir von selbst, wann aus 40 kg
-45 kg werden. Es gibt sie zweimal: als **Android-App** und als **Web-App**, die im Browser
-läuft und sich auf dem Homescreen ablegen lässt. Beide rechnen mit derselben Logik.
+Die App merkt sich jede Last und sagt von selbst, wann aus 40 kg 45 kg werden.
 
-Die Begründung für jede Trainingsregel steht in [TRAININGSWISSEN.md](TRAININGSWISSEN.md).
+<div align="center">
+
+[![APK herunterladen](https://img.shields.io/badge/⬇%20APK%20herunterladen-FerrataFit%201.0-38BDF8?style=for-the-badge&logo=android&logoColor=white&labelColor=0B1220)](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
+
+</div>
+
+## 📱 Nutzen
+
+- **Android-App (APK):** [FerrataFit.apk herunterladen](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
+  — Installation aus unbekannter Quelle bestätigen. Ab Android 8. Nur diese Variante
+  kann mit Samsung Health sprechen.
+- **Web-App:** Ordner [`web/`](web/) auf einen beliebigen Webspace legen oder lokal starten
+  (`cd web && python3 -m http.server 8765`, dann `http://localhost:8765`). Über
+  „App installieren" bzw. „Zum Home-Bildschirm hinzufügen" wie eine App verwendbar,
+  dank Service Worker auch offline.
 
 | Heute | Training | Fortschritt |
 |---|---|---|
-| ![Startbildschirm](screenshots/heute.png) | ![Trainingsansicht](screenshots/training.png) | ![Fortschritt](screenshots/fortschritt.png) |
+| ![Startbildschirm](docs/screenshots/heute.png) | ![Trainingsansicht](docs/screenshots/training.png) | ![Fortschritt](docs/screenshots/fortschritt.png) |
 
----
+## ✨ Funktionen
 
-## Android-App installieren
+- **Automatische Gewichtsvorschläge** — die App erkennt, wann aufgelastet wird, und
+  zeigt `40 kg → 45 kg` samt Begründung
+- **Drei Trainingstage** im Wechsel, auf den Klettersteig zugeschnitten
+- **Geräte-Abgleich** — beim Einrichten hakst du deine Stationen ab; es werden nur
+  Übungen eingeplant, die dein Gerät hergibt
+- **Satz-Logging mit Pausenuhr**, die beim Abhaken automatisch startet
+- **Steig-Bereitschaft 0–100** aus Griffkraft, Zugkraft, Rumpf, Beinen und Regelmäßigkeit
+- **Countdown zur geplanten Tour**
+- **Verlaufskurven je Übung**, Bestleistungen, Einheiten pro Woche
+- **Entlastungswochen** automatisch im Fünf-Wochen-Rhythmus
+- **Zu jeder Übung:** Ausführungshinweis und warum sie am Steig zählt
+- **Samsung Health** über Health Connect (Android-App)
+- **Export/Import** der kompletten Daten, auch zwischen App und Web-Variante
 
-1. `FerrataFit.apk` aufs Handy kopieren — per USB-Kabel, über Nearby Share, oder du
-   lädst sie direkt aus diesem Repository herunter.
-2. Auf dem Handy die Datei antippen.
-3. Android fragt nach der Erlaubnis, Apps aus dieser Quelle zu installieren — bestätigen.
-   (Die App kommt nicht aus dem Play Store, daher die Rückfrage.)
-4. Installieren, fertig.
+## 🎯 Der Trainingsplan
 
-Die App braucht **keine Internetverbindung** und sendet nichts an einen Server.
-Alle Daten bleiben auf dem Gerät.
+Drei Einheiten pro Woche, mindestens ein Ruhetag dazwischen:
 
-## Web-App starten
+| Tag | Schwerpunkt | Übungen |
+|---|---|---|
+| **A** | Zug & Griff — *der Klettersteig-Tag* | Klimmzug · Latzug · Rudern · Knieheben hängend · Curl · Dead Hang |
+| **B** | Beine & Steigkraft | Step-up · Beinstrecker · Beinbeuger · Ausfallschritt · Wadenheben · Plank |
+| **C** | Druck & Stabilität | Brustpresse · Schulterdrücken · Butterfly · Reverse Butterfly · Trizeps |
 
-Die Web-Variante liegt in [`web/`](web/). Sie verwendet ES-Module und braucht deshalb
-einen kleinen HTTP-Server — ein Doppelklick auf die `index.html` reicht nicht.
+Der Zug-Tag steht vorne, weil Griff- und Zugkraft am Steig zuerst limitieren — die
+willst du ausgeruht trainieren. Der Bein-Tag folgt, damit sich die Unterarme erholen,
+während die Beine arbeiten. Der Druck-Tag hält die Schultern im Gleichgewicht: Wer nur
+zieht, zieht sich die Haltung nach vorne.
 
-```bash
-cd /mnt/c/Users/Rudeboy/Documents/FerrataFit/web && python3 -m http.server 8765
-```
+## 📈 Wie gesteigert wird
 
-Dann im Browser `http://localhost:8765` öffnen. Über das Browsermenü lässt sie sich als
-App installieren („Zum Startbildschirm hinzufügen" bzw. „Installieren"); danach startet
-sie im eigenen Fenster ohne Adressleiste und funktioniert dank Service Worker auch offline.
+**Doppelte Progression mit der 2-für-2-Regel.** Zuerst arbeitest du dich im
+Wiederholungsfenster nach oben. Erst wenn du das obere Ende in **zwei aufeinander­
+folgenden Einheiten** erreichst, kommt Gewicht drauf — und die Wiederholungen fallen
+wieder auf den unteren Wert. Ein einzelner guter Tag reicht nicht.
 
-Wenn du sie auf dem Handy nutzen willst, ohne den Rechner laufen zu lassen, kannst du den
-Ordner `web/` auf jeden beliebigen Webspace legen — es sind reine statische Dateien.
+| Situation | Vorschlag |
+|---|---|
+| Übung noch nie trainiert | Startschätzung aus dem Körpergewicht, konservativ |
+| Oberes Ende in 2 Einheiten erreicht | **+1 Gewichtsstufe**, Wiederholungen zurück auf Minimum |
+| Oberes Ende einmal erreicht | Halten — „noch eine Einheit, dann wird aufgelastet" |
+| Normal unterwegs | Gleiche Last, eine Wiederholung mehr |
+| 3 Einheiten ohne Fortschritt | **−10 %** und neu anlaufen |
+| Woche 5 im Block | **−15 % Last, ein Satz weniger** |
 
-**Unterschied zur Android-App:** Die Web-Variante kann nicht mit Samsung Health sprechen,
-dafür fehlt dem Browser der Zugang zu Health Connect. Alles andere ist identisch. Die
-Daten der beiden Varianten sind getrennt; über Export/Import lassen sie sich übertragen.
+Beim Dead Hang kommen fünf Sekunden dazu; ab einer Minute lohnt Zusatzgewicht mehr als
+noch längeres Hängen.
 
----
+Ausführlich mit Begründungen: [`docs/TRAININGSWISSEN.md`](docs/TRAININGSWISSEN.md)
 
-## Erster Start
+## ⌚ Samsung Health
 
-Beim ersten Öffnen führen dich beide Varianten durch drei Schritte:
-
-1. **Ausstattung** — hak ab, welche Stationen dein Gerät hat. Es werden nur Übungen
-   eingeplant, die du damit auch ausführen kannst.
-2. **Körpergewicht und Gewichtsstufe** — daraus schätzt die App deine Startlasten. Die
-   Gewichtsstufe ist der Sprung von einer Steckplatte zur nächsten, meist 5 kg.
-3. **Ziel** — wenn du eine Tour im Blick hast, trag sie ein. Die App zählt dann rückwärts.
-
-Die erste Einheit jeder Übung dient nur dazu, deine Lasten zu finden. Ab der zweiten
-beginnt die App zu steigern.
-
-## Die vier Bereiche
-
-**Heute** — was als Nächstes dran ist, was heute aufgelastet wird, deine Steig-Bereitschaft
-und der Countdown zur Tour.
-
-**Plan** — alle drei Trainingstage zum Aufklappen. Zu jeder Übung findest du die Ausführung
-und warum sie für den Steig zählt. Übungen, die dir nicht liegen, kannst du ausblenden.
-
-**Fortschritt** — deine drei Steig-Kennwerte (Dead Hang, Klimmzüge, Knieheben) mit
-Zielmarken, Verlaufskurven je Übung, Bestleistungen und Einheiten pro Woche.
-
-**Mehr** — Samsung-Health-Verbindung, Profil, Ausstattung ändern, Block neu starten,
-Datensicherung.
-
-## Während des Trainings
-
-- Oben wechselst du per Chip zwischen den Übungen.
-- Die große Zahl ist der Vorschlag für heute. Bei einer Steigerung siehst du
-  `40 kg → 45 kg` und den Grund darunter.
-- Jeden Satz mit dem Häkchen abschließen — das startet die Pausenuhr.
-- Das Kopier-Symbol überträgt die Werte eines Satzes auf alle folgenden.
-- **Nur abgehakte Sätze werden gespeichert.**
-
----
-
-## Samsung Health (nur Android)
-
-Samsung bietet ein eigenes SDK an, das aber eine Partnerfreigabe voraussetzt und für eine
-private App nicht in Frage kommt. Der offene Weg führt über **Health Connect**: Samsung
+Samsung bietet ein eigenes SDK an, das aber eine Partnerfreigabe voraussetzt und für
+eine private App ausscheidet. Der offene Weg führt über **Health Connect**: Samsung
 Health gleicht Training, Schritte und Puls damit in beide Richtungen ab.
 
-1. In FerrataFit auf **Mehr → Mit Samsung Health verbinden**.
-2. Health Connect fragt nach den Freigaben — bestätigen.
-3. In der **Samsung-Health-App** einmalig prüfen, dass die Synchronisation aktiv ist:
-   *Einstellungen → Health Connect*.
+1. In FerrataFit auf **Mehr → Mit Samsung Health verbinden**
+2. Health Connect fragt nach den Freigaben — bestätigen
+3. In der Samsung-Health-App prüfen: *Einstellungen → Health Connect*
 
 Danach landet jede abgeschlossene Einheit als Krafttraining in Samsung Health. Der
-Abgleich läuft nicht sekundengenau, sondern typischerweise innerhalb einer Stunde. Über
-**Alles übertragen** schiebst du auch ältere Einheiten nach.
+Abgleich läuft nicht sekundengenau, sondern meist innerhalb einer Stunde. Ab Android 14
+ist Health Connect fest im System eingebaut, auf älteren Geräten wird es nachinstalliert.
 
-Ab Android 14 ist Health Connect fest im System eingebaut; auf älteren Geräten bietet die
-App an, es aus dem Play Store nachzuinstallieren.
+## 📖 Quellen
 
-Kommt nichts an: Auf Samsung-Seite gab es zuletzt wiederholt Fehler beim Abgleich mit
-Health Connect. Meist hilft ein Neustart von Samsung Health oder ein Aus- und Einschalten
-der Synchronisation dort.
+- **Klettersteig-Vorbereitung:** [Der Klettersteiger](https://derklettersteiger.de/krafttraining-fuer-klettersteig/) · [DAV Summit Club](https://www.dav-summit-club.de/service/sicherheit-am-berg/vorbereitung-training) · [Deutscher Alpenverein](https://www.alpenverein.de/thema/training) · [British Mountaineering Council](https://thebmc.co.uk/en/via-ferrata)
+- **2-für-2-Regel:** [Workouts by Winter](https://workoutsbywinter.substack.com/p/the-2-for-2-rule-a-fool-proof-formula)
+- **Doppelte Progression:** [Legion Athletics](https://legionathletics.com/double-progression/) · [Mesostrength](https://mesostrength.com/blog/double-progression)
+- **Entlastungswochen:** [A Practical Approach to Deloading, Sheffield Hallam University (PDF)](https://shura.shu.ac.uk/35313/3/Bell-APracticalApproach\(AM\).pdf) · [Sports Medicine Open](https://link.springer.com/article/10.1186/s40798-024-00691-y) · [Einwöchiger Deload, PMC](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10809978/)
+- **Dead-Hang-Progression:** [DeadHangs.com](https://deadhangs.com/deadhang-progressions/) · [Mountain Tactical Institute](https://mtntactical.com/research/mini-study-two-progression-methods-improve-max-dead-hang-time-in-untrained-athletes/)
+- **Kraftstation-Übungen:** [Hop-Sport](https://hop-sport.at/blog/kraftstation-ubungen-ganzkorper-trainingsplan-fur-anfanger) · [HAMMER](https://www.hammer.de/fitnesswissen/kraftstation-trainingsplan)
+- **Health Connect:** [Android Developers](https://developer.android.com/health-and-fitness/health-connect/experiences/workouts) · [Samsung Developer](https://developer.samsung.com/health/blog/en/accessing-samsung-health-data-through-health-connect)
+
+Vollständige Liste mit Einordnung in [`docs/TRAININGSWISSEN.md`](docs/TRAININGSWISSEN.md).
+
+## 🔧 Technik
+
+**Android** — Kotlin mit Jetpack Compose und Material 3, minSdk 26, keine Datenbank:
+Der gesamte Bestand liegt als einzelne JSON-Datei im App-Verzeichnis und ist damit
+jederzeit als Text exportierbar. Health Connect für die Samsung-Anbindung.
+
+**Web** — reines HTML, CSS und JavaScript ohne Build-Schritt, Daten im localStorage,
+Service Worker für den Offline-Betrieb.
+
+Beide Varianten teilen dieselbe Trainingslogik. Damit sie nicht auseinanderlaufen, prüfen
+zwei Testsätze dieselben Fälle:
+
+```bash
+node web/test-progression.mjs                    # 13 Prüfungen, Web
+bash android/build.sh                            # Android bauen
+```
+
+Für die Android-Tests:
+
+```bash
+cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
+  FERRATAFIT_BUILD_DIR=~/.ferratafit-build \
+  ~/android/tools/gradle-8.11.1/bin/gradle :app:testReleaseUnitTest
+```
+
+### Aufbau
+
+```
+FerrataFit/
+├── android/          Android-App (Kotlin, Jetpack Compose)
+│   ├── app/src/main/java/…/data/     Übungskatalog, Split, Progression, Speicherung
+│   ├── app/src/main/java/…/ui/       Oberfläche
+│   ├── app/src/main/java/…/health/   Health Connect
+│   ├── app/src/test/                 Tests der Progressionslogik
+│   └── build.sh                      Bauen
+├── web/              Web-App (ohne Build-Schritt)
+└── docs/             Trainingswissen und Screenshots
+```
+
+### Signatur
+
+Zugangsdaten stehen in `android/keystore.properties`, der Schlüssel in `android/keystore/`.
+**Beides ist vom Repository ausgeschlossen** und muss lokal aufbewahrt werden. Ohne diese
+Dateien baut Gradle weiter, nimmt dann aber den Debug-Schlüssel — eine so gebaute APK
+lässt sich nicht über eine installierte Version legen.
 
 ---
-
-## Selbst bauen
-
-```bash
-bash build.sh
-```
-
-Die fertige `FerrataFit.apk` landet im Projektordner.
-
-Voraussetzungen auf dieser Maschine:
-- JDK 17 unter `~/android/jdk`
-- Android SDK unter `~/android/sdk` mit Plattform 36 und Build-Tools 36
-- Gradle 8.11.1 unter `~/android/tools/gradle-8.11.1`
-
-Das Projekt lässt sich ebenso in Android Studio öffnen.
-
-**Signatur:** Die Zugangsdaten stehen in `keystore.properties`, der Schlüssel selbst in
-`keystore/`. Beides ist vom Repository ausgeschlossen. Auf einer frisch geklonten Kopie
-ohne diese Dateien baut Gradle weiter, nimmt dann aber den Debug-Schlüssel — eine so
-gebaute APK lässt sich nicht über eine bereits installierte Version legen.
-
-**Behalte den Schlüssel.** Geht er verloren, musst du bei einem Update die alte App
-deinstallieren (Trainingsdaten vorher exportieren).
-
-## Tests
-
-```bash
-node web/test-progression.mjs
-```
-
-Prüft die Progressionslogik der Web-Variante gegen dieselben 13 Fälle, die auch der
-Kotlin-Test abdeckt — so ist sichergestellt, dass Handy und Browser identisch rechnen.
-
-Für die Android-Seite:
-
-```bash
-cd /mnt/c/Users/Rudeboy/Documents/FerrataFit && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk FERRATAFIT_BUILD_DIR=~/.ferratafit-build ~/android/tools/gradle-8.11.1/bin/gradle :app:testReleaseUnitTest
-```
-
----
-
-## Was wo liegt
-
-| Pfad | Inhalt |
-|---|---|
-| `FerrataFit.apk` | Die fertige Android-App |
-| `TRAININGSWISSEN.md` | Trainingslehre hinter der App, mit Quellen |
-| `build.sh` | Android-App neu bauen |
-| `app/src/main/java/…/data/` | Übungskatalog, Split, Progressionslogik, Speicherung |
-| `app/src/main/java/…/ui/` | Oberfläche (Jetpack Compose) |
-| `app/src/main/java/…/health/` | Samsung-Health-Anbindung über Health Connect |
-| `app/src/test/` | Tests der Progressionslogik |
-| `web/` | Web-Variante (HTML, CSS, JavaScript, ohne Build-Schritt) |
-| `screenshots/` | Bilder für dieses README |
-| `keystore/` | Signaturschlüssel — **nicht im Repository**, lokal aufbewahren |
-
-## Datensicherung
-
-Unter **Mehr → Export** bekommst du deinen kompletten Bestand als Datei. Vor einem
-Gerätewechsel einmal machen — auf dem neuen Gerät liest du sie über **Import** wieder ein.
-Das funktioniert auch zwischen Android-App und Web-Variante.
+*Privates Projekt. Trainingsempfehlungen ohne Gewähr — bei Vorerkrankungen oder Schmerzen
+ärztlichen Rat einholen.*

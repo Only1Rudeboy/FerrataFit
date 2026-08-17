@@ -1,7 +1,7 @@
 /**
  * Übungskatalog, Split und Progressionslogik der Web-Variante.
  *
- * Inhaltlich identisch zur Android-App (siehe TRAININGSWISSEN.md) — wer hier etwas
+ * Inhaltlich identisch zur Android-App (siehe docs/TRAININGSWISSEN.md) — wer hier etwas
  * ändert, sollte es dort ebenfalls anpassen, sonst laufen die beiden Varianten
  * inhaltlich auseinander.
  */

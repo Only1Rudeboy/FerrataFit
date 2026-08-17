@@ -9,8 +9,11 @@ local.properties
 # Build-Ergebnisse
 build/
 .gradle/
-*.iml
 .kotlin/
+*.iml
+
+# Die fertige App wird als Release-Anhang veröffentlicht, nicht mitversioniert.
+*.apk
 
 # Android Studio / IntelliJ
 .idea/
