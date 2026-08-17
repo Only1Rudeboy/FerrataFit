@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Hinterer Gipfel -->
+    <path
+        android:fillColor="#2A6F8E"
+        android:pathData="M54,28 L74,62 L34,62 Z" />
+    <!-- Vorderer Hauptgipfel -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M44,36 L70,78 L18,78 Z" />
+    <!-- Schneefeld auf dem Hauptgipfel -->
+    <path
+        android:fillColor="#E8F7FF"
+        android:pathData="M44,36 L53,50 L47,54 L41,49 L35,55 Z" />
+    <!-- Klettersteig-Seil, das ueber die Flanke laeuft -->
+    <path
+        android:strokeColor="#FBBF24"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M62,40 L70,52 L64,62 L74,72" />
+    <!-- Verankerungspunkte am Seil -->
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M62,40 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M74,72 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+</vector>
