@@ -139,7 +139,13 @@ data class Profile(
      * Unterwegs-Modus: Der Plan weicht auf Körpergewichtsübungen aus, weil kein Gerät
      * erreichbar ist. Die Etappe zählt trotzdem voll.
      */
-    val travelMode: Boolean = false
+    val travelMode: Boolean = false,
+    /** Tägliche Erinnerung an die offene Etappe. */
+    val reminderEnabled: Boolean = false,
+    val reminderHour: Int = 18,
+    val reminderMinute: Int = 0,
+    /** Nicht erinnern, wenn heute schon eine Etappe abgehakt wurde. */
+    val reminderSkipIfDone: Boolean = true
 )
 
 /** Ein Trainingstag im Split. */

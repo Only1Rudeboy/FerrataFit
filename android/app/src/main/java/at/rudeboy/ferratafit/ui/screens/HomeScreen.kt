@@ -46,7 +46,9 @@ fun HomeScreen(
     val summit = Journey.summitProgress(meters)
     val quote = Journey.quoteOfDay(now)
     val week = Progression.weekInCycle(p, now)
-    val deload = Progression.isDeloadWeek(week)
+    val taper = Progression.taperStage(p, now)
+    // Solange die Tour bevorsteht, gilt der Taper — sonst stünden zwei Ansagen nebeneinander.
+    val deload = taper == null && Progression.isDeloadWeek(week)
     val readiness = Stats.ferrataReadiness(state.sessions, now)
     val streak = Stats.weeklyStreak(state.sessions, now)
 
@@ -198,6 +200,24 @@ fun HomeScreen(
                 Column(Modifier.padding(18.dp)) {
                     if (stage.kind == StageKind.STRENGTH && deload) {
                         Pill("Entlastungswoche — bewusst leichter", Palette.Emerald)
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    if (taper != null) {
+                        val days = Progression.daysToTarget(p, now) ?: 0
+                        Pill(
+                            when (taper) {
+                                Progression.Taper.NUR_LOCKERN -> "Nur noch lockern"
+                                Progression.Taper.DEUTLICH_LEICHTER -> "Tour in $days Tagen — deutlich zurückfahren"
+                                Progression.Taper.LEICHTER -> "Tour in $days Tagen — ein Satz weniger"
+                            },
+                            Palette.Amber
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            Progression.taperLabel(taper, days),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.TextMid
+                        )
                         Spacer(Modifier.height(12.dp))
                     }
                     if (stage.kind == StageKind.STRENGTH && p.travelMode) {

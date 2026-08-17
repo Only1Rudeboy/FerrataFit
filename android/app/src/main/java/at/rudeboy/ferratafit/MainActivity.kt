@@ -91,6 +91,21 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     val freshBadges by vm.freshBadges.collectAsState()
     val bodySyncing by vm.bodySyncing.collectAsState()
     val editing by vm.editing.collectAsState()
+    val restEndsAt by vm.restEndsAt.collectAsState()
+    val restTotal by vm.restTotal.collectAsState()
+    val restPausedWith by vm.restPausedWith.collectAsState()
+
+    // Die Anzeige tickt hier, die Wahrheit steht im Endzeitpunkt — deshalb stimmt sie
+    // auch dann noch, wenn die App zwischendurch im Hintergrund war.
+    var restSeconds by remember { mutableIntStateOf(0) }
+    LaunchedEffect(restEndsAt, restPausedWith) {
+        restSeconds = vm.remainingRest()
+        while (restSeconds > 0 && restPausedWith == null) {
+            kotlinx.coroutines.delay(500)
+            restSeconds = vm.remainingRest()
+        }
+        if (restPausedWith != null) restSeconds = restPausedWith ?: 0
+    }
 
     var tab by remember { mutableIntStateOf(0) }
     var planDayId by remember { mutableStateOf<String?>(null) }
@@ -102,6 +117,11 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
             snackbar.showSnackbar(it.message)
             vm.clearToast()
         }
+    }
+
+    LaunchedEffect(state.profile.reminderEnabled) {
+        // Alarme überleben weder einen Neustart noch ein Update der App
+        if (state.profile.reminderEnabled) vm.ensureReminderScheduled()
     }
 
     LaunchedEffect(state.profile.healthConnectEnabled) {
@@ -183,6 +203,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onSetHealthEnabled = { vm.setHealthEnabled(it) },
                         onSetAutoWeight = { vm.setAutoWeight(it) },
                         onSetTravelMode = { vm.setTravelMode(it) },
+                        onSetReminder = { on, h, m -> vm.setReminder(on, h, m) },
+                        onSetReminderSkip = { vm.setReminderSkipIfDone(it) },
                         onSyncBody = { vm.syncBody() },
                         onSyncAll = { vm.syncAllToHealth() },
                         onRestartCycle = {
@@ -213,7 +235,14 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onToggleDone = { e, s -> vm.toggleSetDone(e, s) },
                         onApplyToRemaining = { e, s -> vm.applyToRemaining(e, s) },
                         onFinish = { note -> vm.finishWorkout(note) },
-                        onCancel = { vm.cancelWorkout() }
+                        onCancel = { vm.cancelWorkout() },
+                        restSeconds = restSeconds,
+                        restTotal = restTotal,
+                        restPaused = restPausedWith != null,
+                        onStartRest = { vm.startRest(it) },
+                        onToggleRest = { vm.toggleRest() },
+                        onAddRest = { vm.addRest(30) },
+                        onStopRest = { vm.stopRest() }
                     )
                 }
             }

@@ -68,6 +68,50 @@ object Progression {
 
     fun isDeloadWeek(week: Int): Boolean = week == DELOAD_WEEK
 
+    /**
+     * Wie viele Tage vor dem Ziel-Klettersteig zurückgefahren wird.
+     *
+     * Zwei Wochen sind der gängige Rahmen: Das Volumen sinkt deutlich, die Last bleibt —
+     * so verliert man keine Kraft, kommt aber ausgeruht an den Einstieg. Wer bis zum
+     * Vortag voll durchtrainiert, steht müde am Fels.
+     */
+    const val TAPER_DAYS = 14
+
+    /** Die letzten Tage gehören der Erholung, nicht dem Training. */
+    private const val REST_DAYS = 3
+
+    /** Wie weit ist der Zielklettersteig noch weg? Null, wenn keiner gesetzt ist. */
+    fun daysToTarget(profile: Profile, now: Long): Int? {
+        val target = profile.targetFerrataDate ?: return null
+        val days = ((target - now) / DAY_MS).toInt()
+        return if (days < 0) null else days
+    }
+
+    /** Stufe der Zielvorbereitung, oder null wenn die Tour noch weit weg ist. */
+    enum class Taper { LEICHTER, DEUTLICH_LEICHTER, NUR_LOCKERN }
+
+    fun taperStage(profile: Profile, now: Long): Taper? {
+        val days = daysToTarget(profile, now) ?: return null
+        return when {
+            days <= REST_DAYS -> Taper.NUR_LOCKERN
+            days <= 7 -> Taper.DEUTLICH_LEICHTER
+            days <= TAPER_DAYS -> Taper.LEICHTER
+            else -> null
+        }
+    }
+
+    fun taperLabel(stage: Taper, days: Int): String = when (stage) {
+        Taper.LEICHTER ->
+            "Noch $days Tage bis zur Tour — ab jetzt ein Satz weniger je Übung. " +
+                "Die Last bleibt, damit die Kraft bleibt."
+        Taper.DEUTLICH_LEICHTER ->
+            "Noch $days Tage — deutlich zurückfahren: zwei Sätze weniger, gleiche Last, " +
+                "und jeden Satz mit Puffer beenden."
+        Taper.NUR_LOCKERN ->
+            "Nur noch $days Tage. Jetzt bringt Training nichts mehr, Erholung dagegen alles. " +
+                "Halte dich an Dehnen und lockeres Gehen."
+    }
+
     /** Ziel-Puffer der Woche: wie viele Wiederholungen am Satzende noch übrig sein sollen. */
     fun targetRir(week: Int): Int = when (week) {
         1 -> 3
@@ -166,7 +210,9 @@ object Progression {
         now: Long
     ): Suggestion {
         val week = weekInCycle(profile, now)
-        val deload = isDeloadWeek(week)
+        val taper = taperStage(profile, now)
+        // Der Taper hat Vorrang: Beides zusammen würde die Last doppelt reduzieren.
+        val deload = taper == null && isDeloadWeek(week)
         val hist = history(exercise.id, sessions)
 
         // --- Fall 1: noch nie trainiert ---
@@ -201,6 +247,35 @@ object Progression {
         val lastLoad = workingLoad(last)
         val lastBestReps = last.maxOfOrNull { it.reps } ?: 0
         val lastBestSecs = last.maxOfOrNull { it.seconds } ?: 0
+
+        // --- Fall 1b: Die Tour steht bevor ---
+        if (taper != null) {
+            val days = daysToTarget(profile, now) ?: 0
+            val sets = when (taper) {
+                Taper.LEICHTER -> max(2, exercise.sets - 1)
+                Taper.DEUTLICH_LEICHTER -> max(1, exercise.sets - 2)
+                Taper.NUR_LOCKERN -> 1
+            }
+            // Die Last bleibt bewusst stehen — reduziert wird das Volumen, nicht die Intensität.
+            return when (exercise.progression) {
+                ProgressionKind.TIME -> Suggestion(
+                    exercise, Advice.DELOAD, 0.0, 0,
+                    if (taper == Taper.NUR_LOCKERN) (lastBestSecs * 0.6).roundToInt() else lastBestSecs,
+                    sets,
+                    headline = "${if (taper == Taper.NUR_LOCKERN) (lastBestSecs * 0.6).roundToInt() else lastBestSecs} s",
+                    reason = taperLabel(taper, days),
+                    previousHeadline = "$lastBestSecs s"
+                )
+                else -> Suggestion(
+                    exercise, Advice.DELOAD, lastLoad,
+                    if (taper == Taper.NUR_LOCKERN) exercise.repMin else lastBestReps.coerceAtLeast(exercise.repMin),
+                    0, sets,
+                    headline = if (exercise.progression == ProgressionKind.WEIGHT) fmtKg(lastLoad)
+                               else "$lastBestReps Wdh.",
+                    reason = taperLabel(taper, days)
+                )
+            }
+        }
 
         // --- Fall 2: Entlastungswoche schlägt alles andere ---
         if (deload) {

@@ -43,6 +43,8 @@ fun SettingsScreen(
     onSetHealthEnabled: (Boolean) -> Unit,
     onSetAutoWeight: (Boolean) -> Unit,
     onSetTravelMode: (Boolean) -> Unit,
+    onSetReminder: (Boolean, Int?, Int?) -> Unit,
+    onSetReminderSkip: (Boolean) -> Unit,
     onSyncBody: () -> Unit,
     onSyncAll: () -> Unit,
     onRestartCycle: () -> Unit,
@@ -207,6 +209,17 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+
+        // ---------------- Erinnerung ----------------
+        item { SectionTitle("Erinnerung") }
+        item {
+            ReminderCard(
+                profile = state.profile,
+                onSetReminder = onSetReminder,
+                onSetSkipIfDone = onSetReminderSkip,
+                onNotify = onNotify
+            )
         }
 
         // ---------------- Unterwegs ----------------
@@ -520,7 +533,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "FerrataFit · Version 1.5 · Alle Daten bleiben auf dem Gerät",
+                    "FerrataFit · Version 1.6 · Alle Daten bleiben auf dem Gerät",
                     style = MaterialTheme.typography.labelSmall,
                     color = Palette.TextLow
                 )

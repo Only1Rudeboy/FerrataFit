@@ -26,6 +26,7 @@ import at.rudeboy.ferratafit.data.Store
 import at.rudeboy.ferratafit.data.Suggestion
 import at.rudeboy.ferratafit.data.fmtKg
 import at.rudeboy.ferratafit.health.HealthBridge
+import at.rudeboy.ferratafit.reminder.Reminders
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -573,6 +574,102 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _bodySyncing.value = false
             }
         }
+    }
+
+    // ---------------- Pausenuhr ----------------
+
+    /**
+     * Wann die laufende Pause endet — als Zeitpunkt, nicht als Restsekunden.
+     *
+     * Ein herunterzählender Zähler lief nur, solange die App im Vordergrund war: Wer
+     * zwischen zwei Sätzen kurz auf die Nachrichten schaut, kam mit stehengebliebener
+     * Uhr zurück. Ein gemerkter Endzeitpunkt überlebt das, weil die Restzeit jederzeit
+     * aus der aktuellen Uhrzeit folgt — ganz ohne Hintergrunddienst.
+     */
+    private val _restEndsAt = MutableStateFlow(0L)
+    val restEndsAt: StateFlow<Long> = _restEndsAt.asStateFlow()
+
+    /** Wie lange die Pause insgesamt dauern sollte — für den Fortschrittsbalken. */
+    private val _restTotal = MutableStateFlow(0)
+    val restTotal: StateFlow<Int> = _restTotal.asStateFlow()
+
+    /** Bei angehaltener Uhr steht hier die verbleibende Zeit. */
+    private val _restPausedWith = MutableStateFlow<Int?>(null)
+    val restPausedWith: StateFlow<Int?> = _restPausedWith.asStateFlow()
+
+    fun startRest(seconds: Int) {
+        _restTotal.value = seconds
+        _restPausedWith.value = null
+        _restEndsAt.value = System.currentTimeMillis() + seconds * 1000L
+    }
+
+    fun addRest(seconds: Int) {
+        if (_restPausedWith.value != null) {
+            _restPausedWith.value = (_restPausedWith.value ?: 0) + seconds
+        } else if (_restEndsAt.value > 0) {
+            _restEndsAt.value += seconds * 1000L
+        }
+        _restTotal.value = maxOf(_restTotal.value, remainingRest())
+    }
+
+    fun toggleRest() {
+        val paused = _restPausedWith.value
+        if (paused != null) {
+            _restPausedWith.value = null
+            _restEndsAt.value = System.currentTimeMillis() + paused * 1000L
+        } else {
+            _restPausedWith.value = remainingRest()
+            _restEndsAt.value = 0L
+        }
+    }
+
+    fun stopRest() {
+        _restEndsAt.value = 0L
+        _restTotal.value = 0
+        _restPausedWith.value = null
+    }
+
+    /** Restsekunden — aus dem Endzeitpunkt gerechnet, also unabhängig davon, ob die App lief. */
+    fun remainingRest(): Int {
+        _restPausedWith.value?.let { return it }
+        val end = _restEndsAt.value
+        if (end <= 0) return 0
+        return ((end - System.currentTimeMillis()) / 1000L).toInt().coerceAtLeast(0)
+    }
+
+    // ---------------- Erinnerung ----------------
+
+    /**
+     * Schaltet die tägliche Erinnerung.
+     *
+     * Der Alarm wird sofort gesetzt oder gelöscht, damit der Schalter nicht nur eine
+     * Absichtserklärung ist. Die Freigabe für Benachrichtigungen holt die Oberfläche ein.
+     */
+    fun setReminder(enabled: Boolean, hour: Int? = null, minute: Int? = null) {
+        updateProfile {
+            it.copy(
+                reminderEnabled = enabled,
+                reminderHour = hour ?: it.reminderHour,
+                reminderMinute = minute ?: it.reminderMinute
+            )
+        }
+        val p = state.value.profile
+        if (enabled) {
+            Reminders.schedule(getApplication(), p.reminderHour, p.reminderMinute)
+            notify("Erinnerung gestellt auf ${"%02d:%02d".format(p.reminderHour, p.reminderMinute)}.")
+        } else {
+            Reminders.cancel(getApplication())
+            notify("Erinnerung ausgeschaltet.")
+        }
+    }
+
+    fun setReminderSkipIfDone(skip: Boolean) {
+        updateProfile { it.copy(reminderSkipIfDone = skip) }
+    }
+
+    /** Setzt die Planung beim Start neu auf — Alarme überleben weder Neustart noch Update. */
+    fun ensureReminderScheduled() {
+        Reminders.rescheduleFrom(getApplication(), state.value)
     }
 
     /**

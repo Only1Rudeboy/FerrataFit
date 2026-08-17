@@ -10,7 +10,7 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 <div align="center">
 
-[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.5" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
+[<img src="docs/download-button.svg" alt="APK herunterladen — FerrataFit 1.6" width="320">](https://github.com/Only1Rudeboy/FerrataFit/releases/latest/download/FerrataFit.apk)
 
 </div>
 
@@ -31,6 +31,12 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 - **Etappen statt Trainingstage** — jeder Tag hat eine Aufgabe. Erst wenn sie steht,
   wird die nächste frei
+- **Unterwegs-Modus** — auf Reisen weicht der Plan auf Körpergewichtsübungen aus; die
+  Etappe zählt trotzdem voll
+- **Tägliche Erinnerung** an die offene Etappe, Uhrzeit einstellbar
+- **Einheiten nachbearbeiten** — Tippfehler korrigieren oder Einheit löschen
+- **Aufwärmsätze** vor der ersten schweren Übung, bewusst nicht mitgezählt
+- **Tapering** — in den letzten zwei Wochen vor der Tour geht das Volumen zurück
 - **Aktualisierung in der App** — prüft auf neue Fassungen, lädt sie herunter und
   installiert sie. Kein Play Store nötig
 - **Waagendaten** — Gewicht und Körperzusammensetzung kommen automatisch von der
@@ -130,6 +136,30 @@ verlassen das Gerät nicht.
 Die Web-Variante frischt sich beim Öffnen von selbst auf; unter **Mehr** gibt es zusätzlich
 eine Schaltfläche, die den Zwischenspeicher leert und neu lädt.
 
+## 🎒 Unterwegs
+
+Kein Gerät greifbar? Unter **Mehr → Unterwegs** weicht der Plan auf Körpergewichtsübungen
+aus: Latzug wird zu umgekehrtem Rudern an der Tischkante, Brustpresse zu Liegestützen,
+Beinstrecker zur Kniebeuge. Mehr als einen Stuhl, eine Tischkante und ein Handtuch
+brauchst du nicht.
+
+**Die Etappe zählt dabei voll** — Höhenmeter, Serie und Abzeichen laufen weiter. Und der
+Fortschritt geht auf keiner Seite verloren, weil jede Übung ihre eigene Geschichte führt:
+Die Liegestütz-Reihe wächst unterwegs weiter, deine Brustpresse-Lasten stehen zu Hause
+unverändert bereit.
+
+## ⏰ Erinnerung
+
+Unter **Mehr → Erinnerung** stellst du eine tägliche Benachrichtigung ein, die die gerade
+offene Etappe nennt. Wer die Etappe früher am Tag abhakt, bekommt abends Ruhe.
+
+Die App verwendet bewusst keine exakten Alarme — die verlangen ab Android 12 eine eigene
+Freigabe, die Android 14 nur noch auf Nachfrage erteilt. Dafür kann die Erinnerung ein
+paar Minuten später kommen als eingestellt.
+
+Bleibt sie ganz aus, liegt es meist an der Akkuverwaltung: Samsung-Geräte schicken selten
+genutzte Apps in den Tiefschlaf. FerrataFit dort auf „Nicht optimiert" stellen.
+
 ## ⚖️ Waage
 
 Steht deine Waage über **FitDays** mit Samsung Health in Verbindung, holt die App Gewicht
@@ -209,9 +239,10 @@ auseinanderlaufen, prüfen beide Seiten dieselben Fälle — **128 Prüfungen in
 ```bash
 node web/test-progression.mjs    # 13 Prüfungen: Gewichtssteigerung
 node web/test-journey.mjs        # 44 Prüfungen: Etappen, Höhenmeter, Abzeichen, Anleitungen, Körper
+node web/test-import.mjs         # 14 Prüfungen: Einlesen von Waagen-Dateien
 ```
 
-Für die Android-Seite (74 Prüfungen):
+Für die Android-Seite (108 Prüfungen):
 
 ```bash
 cd android && JAVA_HOME=~/android/jdk ANDROID_HOME=~/android/sdk \
@@ -232,7 +263,7 @@ FerrataFit/
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
 │   ├── app/src/main/java/…/update/   Selbstaktualisierung über GitHub
-│   ├── app/src/test/                 74 Tests
+│   ├── app/src/test/                 108 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
 │   ├── exercises.js                  Übungskatalog mit Ausführungsanleitungen

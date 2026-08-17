@@ -33,6 +33,10 @@
     <!-- Erlaubt, die heruntergeladene Fassung selbst zur Installation anzubieten. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Taegliche Erinnerung an die offene Etappe. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Erlaubt das Erkennen der Health-Connect-App auf Android 11+ (Package Visibility). -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
@@ -79,6 +83,26 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+
+        <!-- Zeigt die taegliche Erinnerung und plant gleich die naechste. -->
+        <receiver
+            android:name=".reminder.ReminderReceiver"
+            android:exported="false" />
+
+        <!--
+          Stellt die Erinnerung nach einem Neustart wieder her — und nach einem Update
+          der App, weil auch das gesetzte Alarme loescht. Gerade das trifft diese App,
+          weil sie sich selbst aktualisiert.
+        -->
+        <receiver
+            android:name=".reminder.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
         <!--
           Gibt die heruntergeladene Fassung an den Paketinstallierer weiter. Ab Android 7

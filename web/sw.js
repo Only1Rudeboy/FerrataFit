@@ -20,6 +20,7 @@ const ASSETS = [
   './exercises.js',
   './bodyweight.js',
   './journey.js',
+  './bodyimport.js',
   './icon.svg',
   './icon-192.png',
   './manifest.webmanifest',

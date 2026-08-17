@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
@@ -56,25 +57,21 @@ fun WorkoutScreen(
     onToggleDone: (Int, Int) -> Unit,
     onApplyToRemaining: (Int, Int) -> Unit,
     onFinish: (String) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    restSeconds: Int,
+    restTotal: Int,
+    restPaused: Boolean,
+    onStartRest: (Int) -> Unit,
+    onToggleRest: () -> Unit,
+    onAddRest: () -> Unit,
+    onStopRest: () -> Unit
 ) {
     val entry = workout.entries.getOrNull(workout.currentIndex) ?: return
-    var restSeconds by remember { mutableIntStateOf(0) }
-    var restRunning by remember { mutableStateOf(false) }
     var showFinishDialog by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
     var showWhy by remember { mutableStateOf(false) }
     val chipState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-
-    // Pausenuhr
-    LaunchedEffect(restRunning) {
-        while (restRunning && restSeconds > 0) {
-            delay(1000)
-            restSeconds--
-        }
-        if (restSeconds <= 0) restRunning = false
-    }
 
     LaunchedEffect(workout.currentIndex) {
         showWhy = false
@@ -279,7 +276,47 @@ fun WorkoutScreen(
                 }
             }
 
-            item { SectionTitle("Sätze", "Pause ${entry.exercise.restSec} s") }
+            // Aufwärmen nur bei der ersten belasteten Übung und nur, wenn Last im Spiel ist.
+            // Bewusst nicht mitgeloggt: Aufwärmsätze im Verlauf würden das Volumen aufblähen
+            // und die 2-für-2-Regel verfälschen, weil sie mit wenigen Wiederholungen zählen.
+            if (workout.currentIndex == 0 &&
+                entry.exercise.progression == ProgressionKind.WEIGHT &&
+                entry.suggestion.weightKg >= 20
+            ) {
+                item {
+                    val work = entry.suggestion.weightKg
+                    FfCard(accent = Palette.Emerald) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Filled.LocalFireDepartment, null,
+                                tint = Palette.Emerald, modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Vorher aufwärmen",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Palette.TextHigh
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "1. Satz: ${fmtKg(roundTo(work * 0.5, entry.exercise.increment))} × 8 — locker\n" +
+                                "2. Satz: ${fmtKg(roundTo(work * 0.75, entry.exercise.increment))} × 4 — zügig",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Palette.TextMid
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Diese Sätze werden nicht mitgezählt — sie sollen nur die Gelenke " +
+                                "vorbereiten, nicht die Statistik füllen.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.TextLow
+                        )
+                    }
+                }
+            }
+
+            item { SectionTitle("Arbeitssätze", "Pause ${entry.exercise.restSec} s") }
 
             itemsIndexed(entry.sets) { setIndex, set ->
                 SetRow(
@@ -289,10 +326,7 @@ fun WorkoutScreen(
                     onChange = { block -> onUpdateSet(workout.currentIndex, setIndex, block) },
                     onToggleDone = {
                         onToggleDone(workout.currentIndex, setIndex)
-                        if (!set.done) {
-                            restSeconds = entry.exercise.restSec
-                            restRunning = true
-                        }
+                        if (!set.done) onStartRest(entry.exercise.restSec)
                     },
                     onCopyDown = { onApplyToRemaining(workout.currentIndex, setIndex) }
                 )
@@ -330,11 +364,11 @@ fun WorkoutScreen(
     if (restSeconds > 0) {
         RestTimerBar(
             seconds = restSeconds,
-            total = entry.exercise.restSec,
-            running = restRunning,
-            onToggle = { restRunning = !restRunning },
-            onSkip = { restSeconds = 0; restRunning = false },
-            onAdd = { restSeconds += 30 }
+            total = if (restTotal > 0) restTotal else entry.exercise.restSec,
+            running = !restPaused,
+            onToggle = onToggleRest,
+            onSkip = onStopRest,
+            onAdd = onAddRest
         )
     }
 
@@ -588,3 +622,7 @@ private fun RestTimerBar(
         }
     }
 }
+
+/** Rundet die Aufwärmlast auf die Gewichtsstufe der Station. */
+private fun roundTo(value: Double, step: Double): Double =
+    if (step <= 0) value else kotlin.math.round(value / step) * step

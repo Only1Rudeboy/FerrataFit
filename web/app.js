@@ -8,9 +8,10 @@
 
 import * as D from './data.js';
 import * as J from './journey.js';
+import { parseBodyFile, mergeBody } from './bodyimport.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.6';
 
 const DEFAULT_STATE = {
   profile: {
@@ -886,6 +887,11 @@ function bodySection() {
                  border-radius:13px;padding:12px 14px;color:var(--text-high);outline:none">
         <button class="btn ghost small" id="body-add" style="width:auto;padding:0 18px">Eintragen</button>
       </div>
+      <button class="btn ghost small" id="body-file" style="margin-top:8px">
+        ⬆ Datei aus deiner Waagen-App einlesen</button>
+      <p class="dim" style="font-size:11.5px;margin:8px 0 0">Eine aus FitDays geteilte Tabelle.
+        Komma, Semikolon oder Tabulator, deutsche wie englische Spalten — der Leser kommt
+        mit allem zurecht.</p>
     </div>`;
 }
 
@@ -1469,6 +1475,27 @@ function bindSettings() {
       s.profile.bodyweightKg = kg;
     });
     toast(`${kg} kg eingetragen — die Lastschätzungen rechnen ab jetzt damit.`);
+  };
+
+  const bf = $('#body-file');
+  if (bf) bf.onclick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.txt,text/csv,text/plain';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const result = parseBodyFile(await file.text());
+      if (result.error) { toast(result.error, true); return; }
+      update((s) => {
+        s.body = mergeBody(s.body, result.measurements);
+        const newest = J.Body.latest(s.body);
+        if (newest && J.Body.isFresh(newest.at, Date.now())) s.profile.bodyweightKg = newest.weightKg;
+      });
+      toast(`${result.measurements.length} Messungen eingelesen`
+        + (result.skipped ? `, ${result.skipped} Zeilen übersprungen` : '') + '.');
+    };
+    input.click();
   };
 
   const cu = $('#check-update');
