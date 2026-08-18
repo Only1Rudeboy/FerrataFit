@@ -23,9 +23,9 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   — im Browser öffnen und über „App installieren" bzw. „Zum Home-Bildschirm hinzufügen"
   wie eine App verwenden. Läuft dank Service Worker auch ohne Netz.
 
-| Heute | Anleitung | Dehnen | Körper |
-|---|---|---|---|
-| ![Startbildschirm](docs/screenshots/heute.png) | ![Übungsanleitung](docs/screenshots/anleitung.png) | ![Dehn-Etappe](docs/screenshots/dehnen.png) | ![Körperdaten](docs/screenshots/koerper.png) |
+| Heute | Am Fels | Anleitung | Dehnen | Körper |
+|---|---|---|---|---|
+| ![Startbildschirm](docs/screenshots/heute.png) | ![Missionsübersicht](docs/screenshots/amfels.png) | ![Übungsanleitung](docs/screenshots/anleitung.png) | ![Dehn-Etappe](docs/screenshots/dehnen.png) | ![Körperdaten](docs/screenshots/koerper.png) |
 
 ## ✨ Funktionen
 

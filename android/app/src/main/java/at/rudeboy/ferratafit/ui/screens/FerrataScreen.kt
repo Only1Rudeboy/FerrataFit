@@ -50,6 +50,7 @@ import at.rudeboy.ferratafit.data.FerrataRoutes
 import at.rudeboy.ferratafit.data.Fit
 import at.rudeboy.ferratafit.data.Stats
 import at.rudeboy.ferratafit.data.buildSteigPass
+import at.rudeboy.ferratafit.ui.EmptyHint
 import at.rudeboy.ferratafit.ui.FfCard
 import at.rudeboy.ferratafit.ui.Palette
 import at.rudeboy.ferratafit.ui.Pill
@@ -129,6 +130,21 @@ fun FerrataScreen(
                         onPlan = { onTogglePlanned(route.id) }
                     )
                 }
+            }
+        }
+
+        // Liegt gerade nichts im Rahmen, bleibt die Liste sonst wortlos leer. Der Grund
+        // steht zwar oben im Steigpass, aber nicht dort, wo man ihn sucht.
+        if (listOf(Fit.PASST, Fit.KNAPP, Fit.ZIEL).all { groups[it].isNullOrEmpty() }) {
+            item {
+                EmptyHint(
+                    if (region != null) {
+                        "In diesem Gebiet liegt gerade nichts im Rahmen. Andere Gebiete zeigen mehr."
+                    } else {
+                        pass.reason + " Die Steige darunter stehen weiter offen — sie sind nur " +
+                            "noch nichts, wozu die App raten würde."
+                    }
+                )
             }
         }
 
