@@ -243,7 +243,15 @@ export const STAGE_KIND = {
   MOBILITY: 'MOBILITY',     // Dehnen und Mobilisieren
   ENDURANCE: 'ENDURANCE',   // Wandern, Treppen, Rad — selbst eintragen
   RECOVERY: 'RECOVERY',     // Langes Dehnen, bewusst ruhig
+  /**
+   * Eine echte Begehung am Fels. Steht außerhalb des Wochenzyklus und wird nie als
+   * offene Etappe angeboten — die App plant keine Bergtouren, sie hält sie fest.
+   */
+  FERRATA: 'FERRATA',
 };
+
+/** Kennung für Einträge, die außerhalb des Wochenzyklus stehen. */
+export const EXTRA_STAGE_ID = 'F0';
 
 /**
  * Ein Wochenzyklus aus sieben Etappen. Zwischen zwei Krafteinheiten liegt immer
@@ -306,7 +314,11 @@ export function dayForStage(stage) {
  * Übersprungene zählen mit, damit man nicht steckenbleibt.
  */
 export function currentStageIndex(progress) {
-  return progress.length;
+  // Begehungen zählen hier bewusst nicht mit. Täten sie es, verschöbe jede Bergtour
+  // den Wochenrhythmus — nach drei Steigen stünde plötzlich ein Ruhetag an, obwohl
+  // seit einer Woche nicht trainiert wurde. Ein Steig wird gegangen, wenn Wetter und
+  // Zeit passen, nicht wenn ein Plan es vorsieht.
+  return progress.filter((p) => p.stageId !== EXTRA_STAGE_ID).length;
 }
 
 export function currentStage(progress) {

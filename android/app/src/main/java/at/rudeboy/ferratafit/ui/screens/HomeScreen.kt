@@ -363,6 +363,18 @@ fun HomeScreen(
             }
         }
 
+        // ---------- Steigpass, sobald es etwas festzuhalten gibt ----------
+        // Vor der ersten Begehung bliebe die Karte leer und würde nur mahnen —
+        // deshalb erscheint sie erst, wenn jemand tatsächlich am Fels war.
+        if (state.ascents.isNotEmpty()) {
+            item {
+                SteigPassCard(
+                    buildSteigPass(state.ascents, readiness, now),
+                    compact = true
+                )
+            }
+        }
+
         // ---------- Körperdaten, sofern die Waage etwas geliefert hat ----------
         if (state.body.isNotEmpty()) {
             item { BodyStrip(state = state, onOpen = onOpenBody) }

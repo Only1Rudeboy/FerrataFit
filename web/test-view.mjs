@@ -1,0 +1,97 @@
+/**
+ * Rendert die Fels-Ansichten und prüft das erzeugte HTML.
+ *
+ * Die übrigen Prüfungen fassen nur die Regeln an. Diese hier baut die Oberfläche
+ * tatsächlich auf — mit minimalen Attrappen für die Browser-Bausteine, die Node nicht
+ * mitbringt. Sie fängt die Klasse Fehler, die keine Regelprüfung sieht: ein „undefined"
+ * mitten im Text, eine leere Liste ohne Erklärung, ein Formular ohne Absenden-Sperre.
+ *
+ * Aufruf:  node web/test-view.mjs
+ */
+// Ein bereits eingerichtetes Profil mit zwei sauberen B-Begehungen — damit die
+// Ansicht mit echten Daten läuft und nicht in die Ersteinrichtung springt.
+const store = {
+  'ferratafit.v1': JSON.stringify({
+    profile: { onboarded: true, stations: ['LAT_PULLDOWN','PULLUP_BAR','BODYWEIGHT'],
+               daysPerWeek: 3, bodyweightKg: 78, plateStepKg: 5, cycleStart: Date.now() },
+    sessions: Array.from({ length: 9 }, (_, i) => ({
+      id: 's' + i, dayId: ['A','B','C'][i % 3],
+      startedAt: Date.now() - 86400000 * (i * 2 + 1),
+      finishedAt: Date.now() - 86400000 * (i * 2 + 1) + 3300000,
+      // Die Übungen, aus denen sich die Steig-Bereitschaft speist
+      sets: [
+        { exerciseId: 'deadhang', setIndex: 0, seconds: 45 },
+        { exerciseId: 'pullup', setIndex: 0, reps: 6 },
+        { exerciseId: 'hang_knee_raise', setIndex: 0, reps: 10 },
+        { exerciseId: 'plank', setIndex: 0, seconds: 70 },
+        { exerciseId: 'stepup', setIndex: 0, weightKg: 20, reps: 12 },
+      ],
+    })), hiddenExercises: [], progress: [], seenBadges: [], body: [],
+    ascents: [
+      { id:'a1', date: Date.now()-86400000*20, name:'Klettersteig Kellenegg', grade:'B',
+        climbMeters:60, durationMin:60, feel:'GUT', flags:[], turnedBack:false },
+      { id:'a2', date: Date.now()-86400000*8, name:'Via Örfla', grade:'B',
+        climbMeters:110, durationMin:90, feel:'LOCKER', flags:['RUND'], turnedBack:false },
+    ],
+    plannedRouteIds: [],
+  }),
+};
+globalThis.localStorage = {
+  getItem: (k) => store[k] ?? null,
+  setItem: (k, v) => { store[k] = v; },
+};
+const el = () => ({
+  onclick: null, oninput: null, onchange: null, value: '', dataset: {},
+  focus() {}, setSelectionRange() {}, remove() {}, closest: () => null,
+  querySelectorAll: () => [], querySelector: () => null, appendChild() {},
+  classList: { add() {}, remove() {} }, style: {},
+});
+globalThis.document = {
+  body: { innerHTML: '' },
+  querySelectorAll: () => [], querySelector: () => el(),
+  getElementById: () => null, createElement: el,
+  addEventListener() {}, documentElement: el(),
+};
+globalThis.window = { addEventListener() {}, matchMedia: () => ({ matches: false }) };
+Object.defineProperty(globalThis, 'navigator', { value: { serviceWorker: { register: () => Promise.resolve() } }, configurable: true });
+globalThis.confirm = () => true;
+
+const app = await import('./app.js');
+const html = document.body.innerHTML;
+
+let bad = 0;
+const ok = (name, cond, detail = '') => {
+  if (!cond) bad++;
+  console.log(`${cond ? '  ✓' : '  ✗'} ${name}${cond ? '' : '  ' + detail}`);
+};
+
+ok('App startet ohne Absturz', typeof html === 'string' && html.length > 500);
+ok('Reiter „Am Fels" erscheint in der Navigation', html.includes('Am Fels'));
+
+// Die Fels-Ansicht selbst rendern
+const ferrata = app.__test.viewFerrata();
+ok('Steigpass wird angezeigt', /Im Rahmen/.test(ferrata));
+ok('Rang wird genannt', /Steigfinder|Drahtseilgeher|Talgänger/.test(ferrata));
+ok('Routen erscheinen', (ferrata.match(/data-route=/g) || []).length > 5,
+   `nur ${(ferrata.match(/data-route=/g) || []).length}`);
+ok('nichts wird zwei Stufen über dem Bestätigten empfohlen',
+   !/data-route[\s\S]{0,400}>[DEF]</.test(ferrata.split('Noch nicht dran')[0]));
+ok('Hinweistext steht am Ende', /Entschieden wird am Einstieg/.test(ferrata));
+ok('Gebietsfilter ist da', /data-region=/.test(ferrata));
+ok('Begehungen werden aufgelistet', /Via Örfla/.test(ferrata));
+ok('kein rohes undefined im HTML', !/undefined/.test(ferrata),
+   (ferrata.match(/.{40}undefined.{40}/) || [''])[0]);
+
+// Das Formular rendern
+const form = app.__test.viewAscentForm({
+  routeId: null, name: '', region: '', search: '', gradeIdx: 2,
+  meters: '', minutes: '', feel: null, flags: [], turnedBack: false, partners: '', note: '',
+});
+ok('Formular fragt nach dem Gefühl', /Wie hat es sich angefühlt/.test(form));
+ok('Umkehren steht gleichberechtigt da', /Umgekehrt/.test(form));
+ok('Speichern ist ohne Angaben gesperrt', /disabled/.test(form));
+ok('alle sechs Stufen zur Auswahl', (form.match(/data-grade=/g) || []).length === 6);
+ok('kein rohes undefined im Formular', !/undefined/.test(form),
+   (form.match(/.{40}undefined.{40}/) || [''])[0]);
+console.log(bad === 0 ? '\nRauchtest bestanden.\n' : `\n${bad} Problem(e).\n`);
+process.exit(bad ? 1 : 0);

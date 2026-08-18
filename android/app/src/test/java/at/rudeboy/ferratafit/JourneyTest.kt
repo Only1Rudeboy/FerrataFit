@@ -2,6 +2,7 @@ package at.rudeboy.ferratafit
 
 import at.rudeboy.ferratafit.data.BadgeSnapshot
 import at.rudeboy.ferratafit.data.Exercises
+import at.rudeboy.ferratafit.data.Ferrata
 import at.rudeboy.ferratafit.data.Journey
 import at.rudeboy.ferratafit.data.StageKind
 import at.rudeboy.ferratafit.data.StageLog
@@ -256,5 +257,50 @@ class JourneyTest {
         assertEquals(22, Exercises.all.size)
         assertEquals(12, Journey.mobility.size)
         assertEquals(Exercises.all.size, Exercises.all.map { it.id }.toSet().size)
+    }
+
+    // ------------------------------------------------------------------
+    // Begehungen stehen außerhalb des Zyklus
+    // ------------------------------------------------------------------
+
+    private fun stageLog(id: String, kind: StageKind, meters: Int, at: Long = 0L) =
+        StageLog(stageId = id, kind = kind.name, meters = meters, at = at)
+
+    /**
+     * Die offene Etappe ergibt sich aus der Anzahl gegangener Etappen. Zählten Begehungen
+     * mit, verschöbe jede Bergtour den Wochenrhythmus — nach drei Steigen stünde plötzlich
+     * ein Ruhetag an, obwohl seit einer Woche nicht trainiert wurde.
+     */
+    @Test
+    fun begehungenVerschiebenDenZyklusNicht() {
+        val training = List(3) { stageLog("S$it", StageKind.STRENGTH, 120) }
+        val mitFels = training + List(4) {
+            stageLog(Ferrata.EXTRA_STAGE_ID, StageKind.FERRATA, 400)
+        }
+
+        assertEquals(
+            "Vier Begehungen haben die offene Etappe verschoben",
+            Journey.currentIndex(training), Journey.currentIndex(mitFels)
+        )
+        assertEquals(Journey.current(training).id, Journey.current(mitFels).id)
+    }
+
+    /** Höhenmeter zählen dagegen sehr wohl — sie sind der Umfang, nicht der Rhythmus. */
+    @Test
+    fun begehungenZaehlenBeiDenHoehenmetern() {
+        val training = List(2) { stageLog("S$it", StageKind.STRENGTH, 120) }
+        val mitFels = training + stageLog(Ferrata.EXTRA_STAGE_ID, StageKind.FERRATA, 400)
+
+        assertEquals(
+            Journey.totalMeters(training) + 400,
+            Journey.totalMeters(mitFels)
+        )
+    }
+
+    /** Auch viele Begehungen hintereinander dürfen den Zyklus nicht bewegen. */
+    @Test
+    fun auchZwanzigBegehungenBewegenNichts() {
+        val nur = List(20) { stageLog(Ferrata.EXTRA_STAGE_ID, StageKind.FERRATA, 300) }
+        assertEquals(0, Journey.currentIndex(nur))
     }
 }

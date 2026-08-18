@@ -11,7 +11,9 @@ import at.rudeboy.ferratafit.data.Progression
 import at.rudeboy.ferratafit.data.Session
 import at.rudeboy.ferratafit.data.SessionEdit
 import at.rudeboy.ferratafit.data.SetLog
+import at.rudeboy.ferratafit.data.Ascent
 import at.rudeboy.ferratafit.data.Badge
+import at.rudeboy.ferratafit.data.Ferrata
 import at.rudeboy.ferratafit.data.Body
 import at.rudeboy.ferratafit.data.BodyImport
 import at.rudeboy.ferratafit.data.BodyMeasurement
@@ -270,6 +272,62 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleHiddenExercise(id: String) = store.update { s ->
         s.copy(hiddenExercises = if (id in s.hiddenExercises) s.hiddenExercises - id else s.hiddenExercises + id)
+    }
+
+    // ---------------- Am Fels ----------------
+
+    /**
+     * Trägt eine Begehung ein.
+     *
+     * Sie landet an zwei Stellen: in [AppState.ascents] als Grundlage für Rang und
+     * Empfehlung, und als Etappenprotokoll für die Höhenmeter und Abzeichen. Die
+     * Kennung [Ferrata.EXTRA_STAGE_ID] sorgt dafür, dass sie den Wochenzyklus nicht
+     * weiterschiebt — ein Steig wird gegangen, wenn Wetter und Zeit passen, nicht
+     * wenn der Plan es vorsieht.
+     */
+    fun addAscent(ascent: Ascent) {
+        val before = Journey.earnedBadges(badgeSnapshot()).map { it.id }.toSet()
+
+        store.update { s ->
+            s.copy(
+                ascents = s.ascents + ascent,
+                progress = s.progress + StageLog(
+                    stageId = Ferrata.EXTRA_STAGE_ID,
+                    kind = StageKind.FERRATA.name,
+                    meters = ascent.climbMeters,
+                    at = ascent.date,
+                    detail = ascent.name
+                ),
+                // Eine vorgemerkte Route ist mit der Begehung erledigt
+                plannedRouteIds = s.plannedRouteIds - (ascent.routeId ?: "")
+            )
+        }
+
+        val after = Journey.earnedBadges(badgeSnapshot())
+        val fresh = after.filterNot { it.id in before }
+        if (fresh.isNotEmpty()) {
+            store.update { s -> s.copy(seenBadges = after.map { it.id }.toSet()) }
+            _freshBadges.value = fresh
+        }
+        notify(Ferrata.completionLine(ascent))
+    }
+
+    fun removeAscent(id: String) = store.update { s ->
+        val gone = s.ascents.firstOrNull { it.id == id }
+        s.copy(
+            ascents = s.ascents.filterNot { it.id == id },
+            // Nur das zugehörige Protokoll entfernen, nicht jede Begehung desselben Tages
+            progress = if (gone == null) s.progress else s.progress.filterNot {
+                it.stageId == Ferrata.EXTRA_STAGE_ID && it.at == gone.date
+            }
+        )
+    }
+
+    fun togglePlannedRoute(id: String) = store.update { s ->
+        s.copy(
+            plannedRouteIds = if (id in s.plannedRouteIds) s.plannedRouteIds - id
+            else s.plannedRouteIds + id
+        )
     }
 
     /** Startet den 5-Wochen-Block neu — sinnvoll nach einer längeren Pause. */

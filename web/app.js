@@ -9,9 +9,11 @@
 import * as D from './data.js';
 import * as J from './journey.js';
 import { parseBodyFile, mergeBody } from './bodyimport.js';
+import * as FE from './ferrata.js';
+import { FERRATAS, ferrataRegions } from './ferratas.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 
 const DEFAULT_STATE = {
   profile: {
@@ -33,6 +35,10 @@ const DEFAULT_STATE = {
   /** Messungen von der Waage. Im Browser von Hand eingetragen. */
   body: [],
   heightCm: null,
+  /** Echte Begehungen am Fels. */
+  ascents: [],
+  /** Routen, die als Ziel vorgemerkt wurden. */
+  plannedRouteIds: [],
 };
 
 let state = load();
@@ -42,6 +48,10 @@ let active = null;      // laufende Krafteinheit
 let activeStage = null; // laufende Mobility-/Ausdauer-Etappe
 let restTimer = null;
 let trendPick = null;
+let ferrataRegion = null;   // Gebietsfilter in der Missionsübersicht
+let ferrataOpen = null;     // aufgeklappte Route
+let showTooEarly = false;
+let ascentForm = null;      // offenes Eintragsformular
 
 // ---------------------------------------------------------------------------
 // Zustand
@@ -911,6 +921,344 @@ function keyMetric(name, value, goal, progress, tone) {
 // Bereich: Mehr
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Bereich: Am Fels
+// ---------------------------------------------------------------------------
+
+/**
+ * Die Missionsübersicht.
+ *
+ * Die Reihenfolge ist Absicht. Ganz oben der Steigpass mit der einen Zahl, die zählt —
+ * bis zu welcher Stufe du im Rahmen bist. Darunter die Routen, sortiert nach Passung,
+ * nicht nach Schwierigkeit: Was heute geht, steht oben; was noch zu früh ist, steht
+ * unten und ist eingeklappt. Wer scrollen muss, um an die schweren Sachen zu kommen,
+ * überlegt es sich unterwegs vielleicht anders.
+ */
+function viewFerrata() {
+  const now = Date.now();
+  const readiness = D.ferrataReadiness(state.sessions, now);
+  const pass = FE.buildSteigPass(state.ascents, readiness, now);
+
+  const sorted = FERRATAS
+    .filter((r) => !ferrataRegion || r.region === ferrataRegion)
+    .map((r) => ({ r, fit: FE.fitFor(r, state.ascents, readiness) }))
+    .sort((a, b) => a.fit - b.fit
+      || FE.gradeIndex(a.r.grade) - FE.gradeIndex(b.r.grade)
+      || a.r.name.localeCompare(b.r.name));
+
+  const group = (f) => sorted.filter((x) => x.fit === f);
+  const tooEarly = group(FE.FIT.ZU_FRUEH);
+
+  const section = (f) => {
+    const rows = group(f);
+    if (!rows.length) return '';
+    const tone = ['emerald', 'amber', 'violet', 'dim'][f];
+    return `
+      <div class="section-title" style="margin-top:16px">
+        <span><span class="fit-dot ${tone}"></span>${FE.FIT_TITLE[f]}
+          <span class="dim" style="font-weight:400"> ${rows.length}</span></span>
+      </div>
+      <p class="muted" style="font-size:12.5px;margin:-4px 0 8px 17px">${esc(FE.FIT_LABEL[f])}</p>
+      ${rows.map((x) => routeCard(x.r, x.fit)).join('')}`;
+  };
+
+  return `
+  <div class="wrap">
+    <h1>🧗 Am Fels</h1>
+    ${steigPassCard(pass)}
+
+    <button class="btn primary block" data-log-ascent style="margin:12px 0">
+      Begehung eintragen
+    </button>
+
+    <div class="chips">
+      <button class="chip ${!ferrataRegion ? 'on' : ''}" data-region="">Alle Gebiete</button>
+      ${ferrataRegions.map((r) => `<button class="chip ${ferrataRegion === r ? 'on' : ''}"
+        data-region="${esc(r)}">${esc(r.split(' (')[0])}</button>`).join('')}
+    </div>
+
+    ${section(FE.FIT.PASST)}${section(FE.FIT.KNAPP)}${section(FE.FIT.ZIEL)}
+
+    ${!group(FE.FIT.PASST).length && !group(FE.FIT.KNAPP).length && !group(FE.FIT.ZIEL).length ? `
+      <div class="empty" style="margin-top:16px">${
+        ferrataRegion
+          ? 'In diesem Gebiet liegt gerade nichts im Rahmen. Andere Gebiete zeigen mehr.'
+          : esc(pass.reason) + ' Die Steige darunter stehen weiter offen — sie sind nur ' +
+            'noch nichts, wozu die App raten würde.'}</div>` : ''}
+
+    ${tooEarly.length ? `
+      <div class="card" style="margin-top:16px;padding:14px;cursor:pointer" data-toggle-early>
+        <div class="row">
+          <div class="grow">
+            <div style="font-weight:600;color:var(--text-mid)">Noch nicht dran</div>
+            <div class="dim" style="font-size:12px">${tooEarly.length} Steige über deinem bisherigen Stand</div>
+          </div>
+          <div class="dim">${showTooEarly ? '▲' : '▼'}</div>
+        </div>
+      </div>
+      ${showTooEarly ? tooEarly.map((x) => routeCard(x.r, x.fit)).join('') : ''}` : ''}
+
+    ${state.ascents.length ? `
+      <div class="section-title" style="margin-top:20px"><span>Deine Begehungen</span></div>
+      ${state.ascents.slice().reverse().map((a) => `
+        <div class="card" style="padding:14px">
+          <div class="row">
+            <div class="badge" style="width:36px;height:36px;font-size:14px">${esc(a.grade)}</div>
+            <div class="grow">
+              <div style="font-weight:600">${esc(a.name)}</div>
+              <div class="dim" style="font-size:12px">${relativeDay(a.date, now)}${
+                a.climbMeters ? ' · ' + a.climbMeters + ' Hm' : ''}${
+                a.turnedBack ? ' · umgekehrt' : ''}</div>
+            </div>
+            <button class="btn ghost small" data-del-ascent="${esc(a.id)}">löschen</button>
+          </div>
+        </div>`).join('')}` : ''}
+
+    <p class="muted" style="font-size:12px;margin-top:20px">ℹ️ ${esc(FE.DISCLAIMER)}</p>
+  </div>`;
+}
+
+/** Rang als Überschrift, Form als Balken, darunter die eine Zahl, die zählt. */
+function steigPassCard(pass) {
+  return `
+  <div class="card accent-amber">
+    <div class="row" style="gap:13px">
+      <div class="badge" style="width:46px;height:46px;font-size:22px;background:rgba(251,191,36,.15)">${pass.rank.icon}</div>
+      <div class="grow">
+        <h2 style="font-size:17px;margin:0">${esc(pass.rank.title)}</h2>
+        <p class="dim" style="font-size:12.5px;margin:2px 0 0">${
+          pass.cleanAscents} saubere ${pass.cleanAscents === 1 ? 'Begehung' : 'Begehungen'} ·
+          ${pass.meters} Hm am Fels${pass.mastered ? ' · ' + pass.mastered.label + ' bestätigt' : ''}</p>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="row" style="font-size:12.5px;margin-bottom:5px">
+        <span class="dim grow">Trainingsform</span>
+        <span style="color:var(--text-mid)">${pass.readiness}/100</span>
+      </div>
+      <div class="bar"><i style="width:${pass.readiness}%"></i></div>
+    </div>
+
+    <div style="margin-top:15px;padding-top:14px;border-top:1px solid var(--outline)">
+      <div class="row">
+        <div class="grow">
+          <div class="dim" style="font-size:12px">Im Rahmen</div>
+          <div style="font-size:19px;font-weight:700;color:var(--amber)">bis Stufe ${pass.recommended.label}</div>
+        </div>
+      </div>
+      <p class="muted" style="font-size:12.5px;margin:7px 0 0">${esc(pass.reason)}</p>
+    </div>
+
+    ${pass.nextRank ? `
+      <p class="dim" style="font-size:12px;margin:12px 0 0">
+        Nächster Rang ${pass.nextRank.icon} ${esc(pass.nextRank.title)} — ${esc(pass.nextHint)}</p>` : ''}
+  </div>`;
+}
+
+function routeCard(r, fit) {
+  const tone = ['emerald', 'amber', 'violet', 'dim'][fit];
+  const open = ferrataOpen === r.id;
+  const planned = state.plannedRouteIds.includes(r.id);
+  const meta = [
+    r.climbMeters ? r.climbMeters + ' Klettermeter' : null,
+    r.totalMin ? `${Math.floor(r.totalMin / 60)} h ${r.totalMin % 60} min` : null,
+    (r.region || '').split(' (')[0],
+  ].filter(Boolean).join(' · ');
+
+  return `
+  <div class="card ${open ? 'accent-' + tone : ''}" style="padding:15px">
+    <div class="row" data-route="${esc(r.id)}" style="cursor:pointer">
+      <div class="badge grade ${tone}">${esc(r.grade)}</div>
+      <div class="grow">
+        <div style="font-weight:600">${esc(r.name)}</div>
+        <div class="dim" style="font-size:12px">${esc(meta)}</div>
+      </div>
+      <button class="star ${planned ? 'on' : ''}" data-plan="${esc(r.id)}"
+        title="${planned ? 'Vorgemerkt' : 'Vormerken'}">${planned ? '★' : '☆'}</button>
+    </div>
+
+    ${open ? `
+      <div style="margin-top:13px">
+        <div class="chips" style="margin-bottom:10px">
+          ${r.crux ? `<span class="pill rose">Schlüsselstelle ${esc(r.crux)}</span>` : ''}
+          ${r.hasExit ? '<span class="pill emerald">Notausstieg</span>' : ''}
+          ${r.familyFriendly ? '<span class="pill sky">familientauglich</span>' : ''}
+        </div>
+        ${r.summary ? `<p class="muted" style="font-size:13px">${esc(r.summary)}</p>` : ''}
+        ${detailBlock('Zustieg', r.approach)}
+        ${detailBlock('Abstieg', r.descent)}
+        ${detailBlock('Ausrüstung', r.gear)}
+        ${r.season ? detailBlock('Saison', r.season) : ''}
+        ${r.warnings && r.warnings.length ? `
+          <h4 style="color:var(--rose);font-size:12.5px;margin:14px 0 4px">Zu beachten</h4>
+          <ul class="warn">${r.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+        ${r.verified === false ? `
+          <div class="note-amber">Die Quellen widersprechen sich bei diesem Steig — meist beim
+            Schwierigkeitsgrad. Vor Ort prüfen und im Zweifel die schwerere Angabe annehmen.</div>` : ''}
+        ${r.sources && r.sources.length ? `
+          <p class="dim" style="font-size:11.5px;margin-top:11px">Quellen: ${
+            r.sources.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${
+              esc(u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0])}</a>`).join(' ')}</p>` : ''}
+      </div>` : ''}
+  </div>`;
+}
+
+function detailBlock(label, text) {
+  if (!text) return '';
+  return `<h4 style="color:var(--sky);font-size:12.5px;margin:13px 0 3px">${label}</h4>
+    <p class="muted" style="font-size:13px;margin:0">${esc(text)}</p>`;
+}
+
+/**
+ * Das Eintragsformular.
+ *
+ * Die wichtigste Frage steht in der Mitte und ist keine Zahl: Wie hat es sich angefühlt?
+ * Umkehren steht bewusst gleichberechtigt neben dem Durchstieg, nicht als Kleingedrucktes —
+ * wer meint, ein Abbruch sei ein Makel im Verlauf, kehrt beim nächsten Mal vielleicht
+ * später um als gut wäre.
+ */
+function viewAscentForm() {
+  const f = ascentForm;
+  const hits = f.search.length >= 2 && !f.routeId
+    ? FERRATAS.filter((r) => r.name.toLowerCase().includes(f.search.toLowerCase())
+        || (r.region || '').toLowerCase().includes(f.search.toLowerCase())).slice(0, 6)
+    : [];
+  const canSave = (f.name || '').trim() && f.feel;
+
+  return `
+  <div id="workout"><div class="wrap">
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn ghost" data-close-ascent>← Zurück</button>
+      </div>
+      <h1 style="font-size:22px">Begehung eintragen</h1>
+
+      <div class="card">
+        <h3>Welcher Steig?</h3>
+        ${f.routeId ? `
+          <div class="row" style="margin-top:9px">
+            <div class="grow"><div style="font-weight:600">${esc(f.name)}</div></div>
+            <button class="btn ghost small" data-clear-route>ändern</button>
+          </div>`
+        : `
+          <input id="asc-search" placeholder="Name suchen oder frei eintragen"
+                 value="${esc(f.search)}" autocomplete="off">
+          ${hits.map((r) => `
+            <div class="hit" data-pick="${esc(r.id)}">
+              <span class="g">${esc(r.grade)}</span><span>${esc(r.name)}</span>
+            </div>`).join('')}
+          ${f.search.length >= 2 && !hits.length ? `
+            <p class="dim" style="font-size:12px;margin-top:8px">Nicht im Katalog — wird als
+              eigener Eintrag gespeichert. Schwierigkeit bitte unten selbst wählen.</p>` : ''}`}
+      </div>
+
+      <div class="card">
+        <h3>Schwierigkeit</h3>
+        <p class="dim" style="font-size:12px;margin:3px 0 9px">Bei Zwischenstufen wie C/D zählt die schwerere.</p>
+        <div class="grades">
+          ${FE.GRADES.map((g, i) => `<button class="grade-btn ${f.gradeIdx === i ? 'on' : ''}"
+            data-grade="${i}">${g.label}</button>`).join('')}
+        </div>
+        <p class="muted" style="font-size:12.5px;margin:9px 0 0">${esc(FE.GRADES[f.gradeIdx].desc)}</p>
+      </div>
+
+      <div class="card">
+        <h3>Umfang</h3>
+        <div class="row" style="gap:10px;margin-top:9px">
+          <input id="asc-meters" type="number" inputmode="numeric" placeholder="Klettermeter" value="${f.meters}">
+          <input id="asc-minutes" type="number" inputmode="numeric" placeholder="Dauer in min" value="${f.minutes}">
+        </div>
+        <p class="dim" style="font-size:12px;margin:9px 0 0">Klettermeter meint den gesicherten
+          Steig, nicht den ganzen Tag. Der Zustieg zählt für den Rang nicht mit.</p>
+      </div>
+
+      <div class="card ${f.turnedBack ? 'accent-sky' : ''}">
+        <h3>Wie ist es ausgegangen?</h3>
+        <div class="row" style="gap:9px;margin-top:10px">
+          <button class="choice ${!f.turnedBack ? 'on' : ''}" data-turned="0">Durchgestiegen</button>
+          <button class="choice ${f.turnedBack ? 'on' : ''}" data-turned="1">Umgekehrt</button>
+        </div>
+        ${f.turnedBack ? `<p style="color:var(--sky);font-size:12.5px;margin:10px 0 0">Die Höhenmeter
+          zählen voll. Der Rang bleibt, wo er ist — Umkehren kostet hier nichts.</p>` : ''}
+      </div>
+
+      <div class="card ${!f.feel ? 'accent-amber' : ''}">
+        <h3>Wie hat es sich angefühlt?</h3>
+        <p class="dim" style="font-size:12px;margin:3px 0 9px">Das ist die Angabe, aus der die App am meisten zieht.</p>
+        ${FE.FEELS.map((x) => `
+          <button class="opt ${f.feel === x.id ? 'on' : ''}" data-feel="${x.id}">
+            <span class="dot"></span>${esc(x.label)}</button>`).join('')}
+      </div>
+
+      <div class="card">
+        <h3>Was war das Thema?</h3>
+        <p class="dim" style="font-size:12px;margin:3px 0 9px">Mehrfachauswahl. Fließt in die Trainingsempfehlung ein.</p>
+        ${FE.FLAGS.map((x) => `
+          <button class="opt check ${f.flags.includes(x.id) ? 'on' : ''}" data-flag="${x.id}">
+            <span class="box"></span>${esc(x.label)}</button>`).join('')}
+      </div>
+
+      <div class="card">
+        <h3>Notiz</h3>
+        <input id="asc-partners" placeholder="Mit wem?" value="${esc(f.partners)}" style="margin-top:9px">
+        <input id="asc-note" placeholder="Wie war der Tag?" value="${esc(f.note)}" style="margin-top:10px">
+      </div>
+
+      <button class="btn primary block" data-save-ascent ${canSave ? '' : 'disabled'}
+        style="margin:6px 0 30px">${canSave ? 'Eintragen' : 'Name und Gefühl fehlen noch'}</button>
+  </div></div>`;
+}
+
+/**
+ * Trägt eine Begehung ein.
+ *
+ * Sie landet an zwei Stellen: bei den Begehungen als Grundlage für Rang und Empfehlung,
+ * und als Etappenprotokoll für die Höhenmeter und Abzeichen. Die Kennung F0 sorgt dafür,
+ * dass sie den Wochenzyklus nicht weiterschiebt.
+ */
+function saveAscent() {
+  const f = ascentForm;
+  const a = {
+    id: 'A' + Date.now(),
+    date: Date.now(),
+    name: (f.name || '').trim(),
+    routeId: f.routeId || null,
+    region: f.region || '',
+    grade: FE.GRADES[f.gradeIdx].id,
+    climbMeters: parseInt(f.meters, 10) || 0,
+    durationMin: parseInt(f.minutes, 10) || 0,
+    feel: f.feel,
+    flags: f.flags,
+    turnedBack: !!f.turnedBack,
+    partners: (f.partners || '').trim(),
+    note: (f.note || '').trim(),
+  };
+
+  const before = J.earnedBadges(badgeSnapshot()).map((b) => b.id);
+  update((st) => {
+    st.ascents = [...st.ascents, a];
+    st.progress = [...st.progress, {
+      stageId: J.EXTRA_STAGE_ID,
+      kind: J.STAGE_KIND.FERRATA,
+      meters: a.climbMeters,
+      at: a.date,
+      skipped: false,
+      detail: a.name,
+    }];
+    if (a.routeId) st.plannedRouteIds = st.plannedRouteIds.filter((x) => x !== a.routeId);
+  });
+
+  ascentForm = null;
+  const after = J.earnedBadges(badgeSnapshot());
+  const fresh = after.filter((b) => !before.includes(b.id));
+  if (fresh.length) {
+    update((st) => { st.seenBadges = after.map((b) => b.id); });
+    showBadgeDialog(fresh);
+  }
+  toast(FE.completionLine(a));
+  render();
+}
+
 function viewSettings() {
   const p = state.profile;
   return `
@@ -1352,16 +1700,17 @@ const TABS = [
   { id: 'home', label: 'Heute', icon: '🏠' },
   { id: 'plan', label: 'Plan', icon: '📋' },
   { id: 'progress', label: 'Fortschritt', icon: '📈' },
+  { id: 'ferrata', label: 'Am Fels', icon: '🧗' },
   { id: 'settings', label: 'Mehr', icon: '⚙️' },
 ];
 
 function render() {
-  const view = { home: viewHome, plan: viewPlan, progress: viewProgress, settings: viewSettings }[tab];
+  const view = { home: viewHome, plan: viewPlan, progress: viewProgress, ferrata: viewFerrata, settings: viewSettings }[tab];
   document.body.innerHTML = `
     <div id="app">${view()}</div>
     <nav>${TABS.map((t) => `<button data-tab="${t.id}" class="${tab === t.id ? 'on' : ''}">
       <span class="ic">${t.icon}</span><span>${t.label}</span></button>`).join('')}</nav>
-    ${active ? viewWorkout() : activeStage ? viewStage() : ''}`;
+    ${active ? viewWorkout() : activeStage ? viewStage() : ascentForm ? viewAscentForm() : ''}`;
   if (restLeft > 0) drawRest();
   bindEvents();
 }
@@ -1437,6 +1786,7 @@ function bindEvents() {
   bindSettings();
   bindWorkout();
   bindStage();
+  bindFerrata();
   document.querySelectorAll('[data-rest]').forEach((b) => {
     b.onclick = () => {
       const a = b.dataset.rest;
@@ -1445,6 +1795,151 @@ function bindEvents() {
       else stopRest();
     };
   });
+}
+
+/** Ereignisse im Fels-Bereich und im Eintragsformular. */
+function bindFerrata() {
+  document.querySelectorAll('[data-region]').forEach((b) => {
+    b.onclick = () => { ferrataRegion = b.dataset.region || null; render(); };
+  });
+
+  document.querySelectorAll('[data-route]').forEach((el) => {
+    el.onclick = (ev) => {
+      // Der Stern liegt in derselben Zeile — sein Klick darf die Karte nicht aufklappen
+      if (ev.target.closest('[data-plan]')) return;
+      const id = el.dataset.route;
+      ferrataOpen = ferrataOpen === id ? null : id;
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-plan]').forEach((b) => {
+    b.onclick = (ev) => {
+      ev.stopPropagation();
+      const id = b.dataset.plan;
+      update((st) => {
+        st.plannedRouteIds = st.plannedRouteIds.includes(id)
+          ? st.plannedRouteIds.filter((x) => x !== id)
+          : [...st.plannedRouteIds, id];
+      });
+    };
+  });
+
+  const early = document.querySelector('[data-toggle-early]');
+  if (early) early.onclick = () => { showTooEarly = !showTooEarly; render(); };
+
+  document.querySelectorAll('[data-del-ascent]').forEach((b) => {
+    b.onclick = () => {
+      const id = b.dataset.delAscent;
+      if (!confirm('Diese Begehung löschen?')) return;
+      update((st) => {
+        const gone = st.ascents.find((a) => a.id === id);
+        st.ascents = st.ascents.filter((a) => a.id !== id);
+        // Nur das zugehörige Protokoll entfernen, nicht jede Begehung desselben Tages
+        if (gone) {
+          st.progress = st.progress.filter(
+            (pr) => !(pr.stageId === J.EXTRA_STAGE_ID && pr.at === gone.date));
+        }
+      });
+    };
+  });
+
+  const openBtn = document.querySelector('[data-log-ascent]');
+  if (openBtn) {
+    openBtn.onclick = () => {
+      ascentForm = {
+        routeId: null, name: '', region: '', search: '', gradeIdx: 0,
+        meters: '', minutes: '', feel: null, flags: [], turnedBack: false,
+        partners: '', note: '',
+      };
+      render();
+    };
+  }
+
+  if (!ascentForm) return;
+
+  // Freitext wird laufend übernommen, damit ein Steig außerhalb des Katalogs
+  // nicht beim ersten Neuzeichnen verlorengeht.
+  const search = document.getElementById('asc-search');
+  if (search) {
+    search.oninput = () => { ascentForm.search = search.value; ascentForm.name = search.value; };
+    search.onchange = () => render();
+    // Nach dem Neuzeichnen soll der Cursor dort stehen, wo er war
+    if (ascentForm.search) {
+      search.focus();
+      search.setSelectionRange(search.value.length, search.value.length);
+    }
+  }
+
+  document.querySelectorAll('[data-pick]').forEach((el) => {
+    el.onclick = () => {
+      const r = FERRATAS.find((x) => x.id === el.dataset.pick);
+      if (!r) return;
+      Object.assign(ascentForm, {
+        routeId: r.id, name: r.name, region: r.region || '',
+        gradeIdx: FE.gradeIndex(r.grade),
+        meters: r.climbMeters ? String(r.climbMeters) : ascentForm.meters,
+        minutes: r.totalMin ? String(r.totalMin) : ascentForm.minutes,
+      });
+      render();
+    };
+  });
+
+  const clear = document.querySelector('[data-clear-route]');
+  if (clear) {
+    clear.onclick = () => {
+      Object.assign(ascentForm, { routeId: null, name: '', search: '', region: '' });
+      render();
+    };
+  }
+
+  document.querySelectorAll('[data-grade]').forEach((b) => {
+    b.onclick = () => { captureAscentInputs(); ascentForm.gradeIdx = +b.dataset.grade; render(); };
+  });
+  document.querySelectorAll('[data-turned]').forEach((b) => {
+    b.onclick = () => { captureAscentInputs(); ascentForm.turnedBack = b.dataset.turned === '1'; render(); };
+  });
+  document.querySelectorAll('[data-feel]').forEach((b) => {
+    b.onclick = () => { captureAscentInputs(); ascentForm.feel = b.dataset.feel; render(); };
+  });
+  document.querySelectorAll('[data-flag]').forEach((b) => {
+    b.onclick = () => {
+      captureAscentInputs();
+      const id = b.dataset.flag;
+      const on = ascentForm.flags.includes(id);
+      // „Nichts davon" schließt die anderen aus, und umgekehrt
+      if (id === 'RUND') ascentForm.flags = on ? [] : ['RUND'];
+      else if (on) ascentForm.flags = ascentForm.flags.filter((x) => x !== id);
+      else ascentForm.flags = [...ascentForm.flags.filter((x) => x !== 'RUND'), id];
+      render();
+    };
+  });
+
+  const close = document.querySelector('[data-close-ascent]');
+  if (close) close.onclick = () => { ascentForm = null; render(); };
+
+  const save = document.querySelector('[data-save-ascent]');
+  if (save) save.onclick = () => { captureAscentInputs(); saveAscent(); };
+}
+
+/**
+ * Rettet die Eingabefelder vor dem Neuzeichnen.
+ *
+ * Die Oberfläche baut sich bei jeder Änderung neu auf. Ohne diesen Schritt wäre alles
+ * Getippte weg, sobald jemand eine Schwierigkeit antippt.
+ */
+function captureAscentInputs() {
+  if (!ascentForm) return;
+  const get = (id) => (document.getElementById(id) || {}).value;
+  const search = get('asc-search');
+  if (search !== undefined && !ascentForm.routeId) {
+    ascentForm.search = search;
+    ascentForm.name = search;
+  }
+  const m = get('asc-meters');       if (m !== undefined) ascentForm.meters = m;
+  const t = get('asc-minutes');      if (t !== undefined) ascentForm.minutes = t;
+  const pa = get('asc-partners');    if (pa !== undefined) ascentForm.partners = pa;
+  const no = get('asc-note');        if (no !== undefined) ascentForm.note = no;
 }
 
 function bindSettings() {
@@ -1700,3 +2195,6 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// Nur für den Rauchtest: Die Ansichten sollen sich ohne Browser aufrufen lassen.
+export const __test = { viewFerrata, viewAscentForm: (f) => { const o = ascentForm; ascentForm = f; const h = viewAscentForm(); ascentForm = o; return h; } };

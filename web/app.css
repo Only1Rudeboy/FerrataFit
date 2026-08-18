@@ -698,3 +698,132 @@ dialog::backdrop { background: rgba(0, 0, 0, .7); }
 @media (min-width: 700px) {
   nav { max-width: 620px; left: 50%; transform: translateX(-50%); border-radius: 20px 20px 0 0; }
 }
+
+/* ---------- Am Fels ---------- */
+
+/* Farbpunkt vor der Abschnittsüberschrift — zeigt die Passung auf einen Blick */
+.fit-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 9px;
+  vertical-align: middle;
+}
+.fit-dot.emerald { background: var(--emerald); }
+.fit-dot.amber   { background: var(--amber); }
+.fit-dot.violet  { background: var(--violet); }
+.fit-dot.dim     { background: var(--text-low); }
+
+/* Schwierigkeitsgrad als Kachel links neben dem Routennamen */
+.badge.grade {
+  width: 42px;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 700;
+  flex: none;
+}
+.badge.grade.emerald { background: rgba(52, 211, 153, .15); color: var(--emerald); }
+.badge.grade.amber   { background: rgba(251, 191, 36, .15); color: var(--amber); }
+.badge.grade.violet  { background: rgba(167, 139, 250, .15); color: var(--violet); }
+.badge.grade.dim     { background: rgba(100, 120, 140, .15); color: var(--text-low); }
+
+.star {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 19px;
+  color: var(--text-low);
+  background: transparent;
+}
+.star.on { color: var(--amber); }
+
+.warn { margin: 0; padding-left: 17px; }
+.warn li {
+  color: var(--text-mid);
+  font-size: 13px;
+  margin-top: 4px;
+  &::marker { color: var(--rose); }
+}
+
+.note-amber {
+  margin-top: 12px;
+  padding: 11px;
+  border-radius: 12px;
+  background: rgba(251, 191, 36, .1);
+  color: var(--amber);
+  font-size: 12.5px;
+}
+
+/* Treffer der Steig-Suche im Eintragsformular */
+.hit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 4px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--text-mid);
+  font-size: 14px;
+}
+.hit:active { background: var(--surface-high); }
+.hit .g {
+  width: 38px;
+  color: var(--sky);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.grades { display: flex; gap: 7px; }
+.grade-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 13px;
+  background: var(--surface-high);
+  color: var(--text-mid);
+  font-weight: 700;
+  font-size: 15px;
+}
+.grade-btn.on { background: var(--sky); color: var(--ink); }
+
+.choice {
+  flex: 1;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--surface-high);
+  color: var(--text-mid);
+  font-size: 14px;
+}
+.choice.on { background: var(--sky); color: var(--ink); font-weight: 700; }
+
+/* Auswahlzeilen: Gefühl (einfach) und Themen (mehrfach) */
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 13px;
+  margin-top: 5px;
+  border-radius: 13px;
+  background: var(--surface-high);
+  color: var(--text-mid);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.opt.on { background: rgba(56, 189, 248, .16); color: var(--text-high); }
+.opt .dot,
+.opt .box {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--outline);
+}
+.opt .box { border-radius: 5px; width: 15px; height: 15px; }
+.opt.on .dot { background: var(--sky); }
+.opt.check.on { background: var(--surface-high); }
+.opt.check.on .box { background: var(--emerald); }
+
+.btn.block { width: 100%; }

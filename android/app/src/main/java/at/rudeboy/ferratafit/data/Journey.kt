@@ -30,7 +30,13 @@ enum class StageKind {
     ENDURANCE,
 
     /** Langes Dehnen, bewusst ruhig. */
-    RECOVERY
+    RECOVERY,
+
+    /**
+     * Eine echte Begehung am Fels. Steht außerhalb des Wochenzyklus und wird nie als
+     * offene Etappe angeboten — die App plant keine Bergtouren, sie hält sie fest.
+     */
+    FERRATA
 }
 
 /** Eine Dehn- oder Mobilisationsübung. */
@@ -468,8 +474,16 @@ object Journey {
     /** Welcher Trainingstag gehört zur Etappe? Nur bei Krafteinheiten belegt. */
     fun dayFor(stage: Stage): TrainingDay? = stage.dayId?.let { id -> Catalog.days.firstOrNull { it.id == id } }
 
-    /** Die gerade offene Etappe ergibt sich aus der Zahl der gegangenen. */
-    fun currentIndex(progress: List<StageLog>): Int = progress.size
+    /**
+     * Die gerade offene Etappe ergibt sich aus der Zahl der gegangenen.
+     *
+     * Begehungen am Fels zählen hier bewusst nicht mit: Sie stehen außerhalb des
+     * Wochenzyklus, weil man einen Klettersteig geht, wenn Wetter und Zeit passen —
+     * nicht wenn eine App es vorsieht. Würden sie mitzählen, verschöbe jede Tour den
+     * ganzen Rhythmus.
+     */
+    fun currentIndex(progress: List<StageLog>): Int =
+        progress.count { it.stageId != Ferrata.EXTRA_STAGE_ID }
     fun current(progress: List<StageLog>): Stage = stageAt(currentIndex(progress))
 
     /** Wievielte Runde durch den Wochenzyklus? Ab 1 gezählt. */
@@ -630,6 +644,11 @@ object Journey {
             "Runtergefahren. Der Körper baut jetzt auf.",
             "Erholung ist kein Nichtstun — sie ist der Teil, in dem du stärker wirst.",
             "Gut abgeschlossen. Morgen geht es frisch weiter."
+        )
+        // Begehungen bekommen ihren eigenen Abschlusstext in Ferrata.completionLine,
+        // weil dort auch das Umkehren gewürdigt werden muss.
+        StageKind.FERRATA -> listOf(
+            "Am Fels gewesen. Genau dafür war das Training da."
         )
     }.random()
 

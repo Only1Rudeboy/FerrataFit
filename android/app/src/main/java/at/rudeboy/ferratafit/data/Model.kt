@@ -176,5 +176,9 @@ data class AppState(
     /** Körpergröße in Zentimetern, für den BMI. */
     val heightCm: Double? = null,
     /** Wann zuletzt mit der Waage abgeglichen wurde. */
-    val bodySyncedAt: Long = 0L
+    val bodySyncedAt: Long = 0L,
+    /** Echte Begehungen am Fels. */
+    val ascents: List<Ascent> = emptyList(),
+    /** Routen, die als Ziel vorgemerkt wurden. */
+    val plannedRouteIds: Set<String> = emptySet()
 )

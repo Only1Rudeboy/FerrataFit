@@ -29,6 +29,11 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 ## ✨ Funktionen
 
+- **44 Vorarlberger Klettersteige** mit Missionsübersicht: Die App sortiert sie danach,
+  was zu deinem Stand passt — und schlägt nie mehr als eine Stufe über dem vor, was du
+  zweimal mit Reserve gegangen bist
+- **Steigpass** — Rang, Form und daraus die eine Zahl, die zählt: bis zu welcher Stufe
+  du im Rahmen bist, samt Begründung, welche Achse gerade begrenzt
 - **Etappen statt Trainingstage** — jeder Tag hat eine Aufgabe. Erst wenn sie steht,
   wird die nächste frei
 - **Unterwegs-Modus** — auf Reisen weicht der Plan auf Körpergewichtsübungen aus; die
@@ -119,6 +124,78 @@ das ist greifbarer als eine abstrakte Punktzahl:
 
 Ein vollständiger Wochenzyklus bringt 570 Höhenmeter. Bei der Ausdauer-Etappe zählen
 deine echten Höhenmeter zusätzlich.
+
+## 🧗 Am Fels — die Vorarlberger Klettersteige
+
+Im Reiter **Am Fels** stehen 44 Vorarlberger Klettersteige mit Schwierigkeit, Klettermetern,
+Zu- und Abstieg, Ausrüstung und Warnhinweisen. Aufnahmekriterium ist durchgehende Sicherung
+über eine relevante Strecke und echter Klettercharakter — ein Wanderweg mit dreißig Metern
+Drahtseil an einer ausgesetzten Stelle steht hier nicht drin, auch wenn ihn Tourismusseiten
+als Klettersteig führen.
+
+### Der Steigpass
+
+Zwei Dinge entscheiden, was im Rahmen liegt — und die App nimmt immer den kleineren Wert:
+
+| Achse | Woher sie kommt |
+|---|---|
+| **Erfahrung** | Die höchste Stufe, die du **zweimal mit Reserve** gegangen bist, plus eine |
+| **Form** | Die Steig-Bereitschaft aus dem Training |
+
+Daraus wird eine einzige Aussage: *„Im Rahmen: bis Stufe C"* — mit dem Satz dazu, welche
+der beiden Achsen gerade begrenzt.
+
+Ein Beispiel: Wer sehr stark trainiert, aber noch nie an einer ausgesetzten Stelle stand,
+bekommt trotzdem nur B. Kraft ersetzt keine Routine. Umgekehrt gilt genauso: Wer bis D
+erfahren, aber außer Form ist, liest *„Du kannst mehr, als du gerade trainiert hast."*
+
+### Was die App niemals tut
+
+- **Nie mehr als eine Stufe** über dem, was zweimal mit Reserve gegangen wurde — ohne
+  Ausnahme, unabhängig von jeder Trainingszahl
+- **Eine Stufe nach oben nur dort, wo Umkehren geht** — auf Routen mit Notausstieg oder
+  auf kurzen. Nicht in der Mitte einer langen Wand
+- **Eine knappe Begehung deckelt sofort.** Deine Rückmeldung schlägt jede Berechnung
+- **Nach langer Pause eine Stufe zurück** — die erste Tour der Saison eine Nummer kleiner
+
+### Umkehren zählt
+
+Ein Abbruch schreibt die vollen Höhenmeter gut und kostet keinen Rang. Der Text dazu lautet
+*„Umkehren ist eine Entscheidung, keine Niederlage — und die einzige, die man immer treffen
+kann."* Wer meint, ein Abbruch sei ein Makel im Verlauf, kehrt beim nächsten Mal vielleicht
+später um als gut wäre.
+
+### Ränge
+
+Sie belohnen Wiederholung und Umfang, nie den einen kühnen Versuch:
+
+| Rang | Wofür |
+|---|---|
+| 🥾 Talgänger | Startpunkt |
+| 🧭 Steigfinder | erste saubere Begehung |
+| ⛓ Drahtseilgeher | 3 saubere · A bestätigt · 600 Hm |
+| 🪜 Klammerkletterer | 6 saubere · B bestätigt · 1.800 Hm |
+| 🧗 Wandgeher | 10 saubere · C bestätigt · 4.000 Hm |
+| 🏔 Gratgeher | 16 saubere · D bestätigt · 8.000 Hm |
+| ⛰️ Felsvertraut | 25 saubere · E bestätigt · 15.000 Hm |
+
+*Sauber* heißt: durchgestiegen **und** mit Reserve am Ausstieg.
+
+### Begehungen und der Wochenzyklus
+
+Eine Begehung zählt als Training, verschiebt aber den Wochenrhythmus nicht. Sie steht
+außerhalb des Zyklus — ein Steig wird gegangen, wenn Wetter und Zeit passen, nicht wenn
+ein Plan es vorsieht.
+
+### Zu den Angaben
+
+Wo Quellen sich widersprechen — meist beim Schwierigkeitsgrad — steht das an der Route
+dabei, statt Geratenes wie geprüfte Angaben aussehen zu lassen. Bei Zwischenstufen wie
+`C/D` rechnet die App mit der schwereren.
+
+> Die App kennt weder Wetter noch Zustand der Sicherungen noch deine Tagesverfassung.
+> Die Angaben stammen aus öffentlichen Quellen und können veraltet sein.
+> **Entschieden wird am Einstieg, nicht am Handy.**
 
 ## 🔄 Aktualisierung
 
@@ -220,6 +297,12 @@ ist Health Connect fest im System eingebaut, auf älteren Geräten wird es nachi
 - **Dead-Hang-Progression:** [DeadHangs.com](https://deadhangs.com/deadhang-progressions/) · [Mountain Tactical Institute](https://mtntactical.com/research/mini-study-two-progression-methods-improve-max-dead-hang-time-in-untrained-athletes/)
 - **Kraftstation-Übungen:** [Hop-Sport](https://hop-sport.at/blog/kraftstation-ubungen-ganzkorper-trainingsplan-fur-anfanger) · [HAMMER](https://www.hammer.de/fitnesswissen/kraftstation-trainingsplan)
 - **Health Connect:** [Android Developers](https://developer.android.com/health-and-fitness/health-connect/experiences/workouts) · [Samsung Developer](https://developer.samsung.com/health/blog/en/accessing-samsung-health-data-through-health-connect)
+- **Klettersteige Vorarlberg:** [bergsteigen.com](https://www.bergsteigen.com/) · [klettersteig.de](https://klettersteig.de/) · [via-ferrata.de](https://www.via-ferrata.de/) · [vorarlberg.travel](https://www.vorarlberg.travel/aktivitaet/klettersteige/) · [montafon.at](https://www.montafon.at/) — je Route stehen die verwendeten Quellen in der App
+
+Zu den Routendaten: Übernommen sind **Tatsachen** — Schwierigkeit, Höhenmeter, Zeiten,
+Ausgangspunkte. Solche Angaben sind nicht schutzfähig. Die Beschreibungen sind neu
+geschrieben, Fotos fremder Seiten sind bewusst keine eingebunden. Eigene Bilder kannst
+du beim Eintragen einer Begehung hinzufügen.
 
 Vollständige Liste mit Einordnung in [`docs/TRAININGSWISSEN.md`](docs/TRAININGSWISSEN.md).
 
@@ -259,17 +342,21 @@ FerrataFit/
 │   │   ├── Exercises.kt              Übungskatalog mit Ausführungsanleitungen
 │   │   ├── Catalog.kt                Split und Zusammenstellung
 │   │   ├── Progression.kt            Gewichtssteigerung
-│   │   └── Journey.kt                Etappen, Dehnkatalog, Höhenmeter, Abzeichen
+│   │   ├── Journey.kt                Etappen, Dehnkatalog, Höhenmeter, Abzeichen
+│   │   ├── Ferrata.kt                Rang, Steigpass, Einordnung der Routen
+│   │   └── FerrataRoutes.kt          Die 44 Klettersteige
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
 │   ├── app/src/main/java/…/update/   Selbstaktualisierung über GitHub
-│   ├── app/src/test/                 108 Tests
+│   ├── app/src/test/                 152 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
 │   ├── exercises.js                  Übungskatalog mit Ausführungsanleitungen
 │   ├── data.js                       Split und Progression
 │   ├── journey.js                    Etappen, Dehnkatalog, Höhenmeter, Abzeichen
-│   └── test-*.mjs                    57 Tests
+│   ├── ferrata.js                    Rang, Steigpass, Einordnung der Routen
+│   ├── ferratas.js                   Die 44 Klettersteige
+│   └── test-*.mjs                    125 Prüfungen, inkl. Gleichlauf mit Android
 └── docs/             Trainingswissen und Screenshots
 ```
 

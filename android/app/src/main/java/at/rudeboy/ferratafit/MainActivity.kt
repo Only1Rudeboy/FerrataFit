@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import at.rudeboy.ferratafit.ui.FerrataTheme
 import at.rudeboy.ferratafit.ui.Palette
+import at.rudeboy.ferratafit.ui.screens.AscentScreen
+import at.rudeboy.ferratafit.ui.screens.FerrataScreen
 import at.rudeboy.ferratafit.ui.screens.HomeScreen
 import at.rudeboy.ferratafit.ui.screens.OnboardingScreen
 import at.rudeboy.ferratafit.ui.screens.PlanScreen
@@ -78,6 +81,7 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     HOME("Heute", Icons.Filled.Home),
     PLAN("Plan", Icons.Filled.CalendarMonth),
     PROGRESS("Fortschritt", Icons.Filled.ShowChart),
+    FERRATA("Am Fels", Icons.Filled.Terrain),
     SETTINGS("Mehr", Icons.Filled.Settings)
 }
 
@@ -110,6 +114,7 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     var tab by remember { mutableIntStateOf(0) }
     var planDayId by remember { mutableStateOf<String?>(null) }
     var skipAsk by remember { mutableStateOf<String?>(null) }
+    var logAscent by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(toast) {
@@ -195,6 +200,11 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onImportBodyFile = { vm.importBodyFile(it) },
                         onEditSession = { vm.startEditSession(it) }
                     )
+                    Tab.FERRATA -> FerrataScreen(
+                        state = state,
+                        onLogAscent = { logAscent = true },
+                        onTogglePlanned = { vm.togglePlannedRoute(it) }
+                    )
                     Tab.SETTINGS -> SettingsScreen(
                         state = state,
                         health = vm.health,
@@ -216,6 +226,21 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onNotify = { vm.notify(it) }
                     )
                 }
+            }
+        }
+
+        // Der Begehungseintrag legt sich ebenfalls über die Navigation. Das Formular ist
+        // lang, und ein versehentlicher Tabwechsel würde alles Eingetippte verwerfen.
+        AnimatedVisibility(
+            visible = logAscent,
+            enter = fadeIn() + slideInVertically { it / 4 },
+            exit = fadeOut() + slideOutVertically { it / 4 }
+        ) {
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                AscentScreen(
+                    onSave = { vm.addAscent(it); logAscent = false },
+                    onCancel = { logAscent = false }
+                )
             }
         }
 

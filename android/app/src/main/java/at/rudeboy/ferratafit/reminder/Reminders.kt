@@ -117,6 +117,9 @@ object Reminders {
             StageKind.MOBILITY -> "Etappe $index: ${stage.title} — ein paar Minuten Dehnen, mehr nicht."
             StageKind.ENDURANCE -> "Etappe $index: Rausgehen. Eine halbe Stunde reicht."
             StageKind.RECOVERY -> "Etappe $index: Runterkommen, langes Dehnen. Der Körper baut jetzt auf."
+            // Kommt hier nie vor: Begehungen stehen außerhalb des Zyklus und werden nie
+            // als offene Etappe angeboten. Die App erinnert nicht an Bergtouren.
+            StageKind.FERRATA -> "Etappe $index steht an."
         }
         return "${stage.icon} ${stage.title}" to body
     }
