@@ -87,7 +87,17 @@ data class Ascent(
     val partners: String = "",
     val note: String = "",
     /** Pfad zu einem selbst aufgenommenen Foto. */
-    val photoPath: String = ""
+    val photoPath: String = "",
+    /**
+     * Von der Uhr, über Health Connect — falls die Tour aufgezeichnet wurde.
+     * Der mittlere Puls fließt in die Belastungszahl ein: Er misst, was der Körper
+     * tatsächlich geleistet hat, nicht was die Route auf dem Papier ist.
+     */
+    val avgHr: Int = 0,
+    val maxHr: Int = 0,
+    val kcal: Int = 0,
+    /** Startzeit der übernommenen Aufzeichnung — verhindert doppeltes Übernehmen. */
+    val watchStart: Long = 0L
 ) {
     val gradeEnum: FerrataGrade get() = runCatching { FerrataGrade.valueOf(grade) }.getOrDefault(FerrataGrade.A)
     val feelEnum: Feel get() = runCatching { Feel.valueOf(feel) }.getOrDefault(Feel.GUT)

@@ -10,7 +10,7 @@
 // Beim Anheben der App-Version mit hochzählen — dann verwirft der Browser den alten
 // Bestand. Ein Import aus app.js ginge nicht: Ein klassischer Service Worker kennt
 // keine ES-Module.
-const CACHE = 'ferratafit-v8';
+const CACHE = 'ferratafit-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -23,6 +23,7 @@ const ASSETS = [
   './bodyimport.js',
   './ferrata.js',
   './ferratas.js',
+  './ferrageo.js',
   './icon.svg',
   './icon-192.png',
   './manifest.webmanifest',

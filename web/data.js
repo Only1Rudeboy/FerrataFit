@@ -164,9 +164,11 @@ function hitTopOfRange(ex, sets) {
  * Doppelte Progression mit 2-für-2-Regel: Erst im Wiederholungsfenster nach oben,
  * aufgelastet wird erst nach zwei Einheiten am oberen Ende.
  */
-export function suggest(ex, sessions, profile, now) {
+export function suggest(ex, sessions, profile, now, recovery = null) {
   const week = weekInCycle(profile, now);
-  const deload = isDeloadWeek(week);
+  // Genau eine Reduktion, nie mehrere übereinander: Das Erholungsfenster nach einer
+  // Tour ist akuter als die planmäßige Entlastungswoche.
+  const deload = !recovery && isDeloadWeek(week);
   const hist = history(ex.id, sessions);
 
   const mk = (advice, weightKg, targetReps, targetSeconds, sets, headline, reason, previousHeadline = null) =>
@@ -192,6 +194,26 @@ export function suggest(ex, sessions, profile, now) {
   const lastLoad = workingLoad(last);
   const lastBestReps = Math.max(...last.map((s) => s.reps || 0));
   const lastBestSecs = Math.max(...last.map((s) => s.seconds || 0));
+
+  // --- Fall 1c: Eine Tour wirkt noch nach ---
+  if (recovery) {
+    const f = recovery.level.factor;
+    const sets = Math.max(2, ex.sets - 1);
+    const warum = `${recovery.sourceName} steckt dir noch in den Armen — ` +
+      (recovery.level.id === 'ERHOLUNG'
+        ? 'heute wäre Erholung besser. Wenn du trainierst, dann deutlich leichter.'
+        : 'heute bewusst leichter, morgen geht es normal weiter.');
+    if (ex.progression === KIND.TIME) {
+      const t = Math.round(lastBestSecs * f);
+      return mk(ADVICE.DELOAD, 0, 0, t, sets, `${t} s`, warum, `${lastBestSecs} s`);
+    }
+    const w = roundToPlate(lastLoad * f, profile.plateStepKg);
+    const reps = Math.max(ex.repMin, Math.round(lastBestReps * f));
+    return mk(ADVICE.DELOAD, w, reps, 0, sets,
+      ex.progression === KIND.WEIGHT ? fmtKg(w) : `${reps} Wdh.`,
+      warum,
+      ex.progression === KIND.WEIGHT ? fmtKg(lastLoad) : null);
+  }
 
   // --- Fall 2: Entlastungswoche ---
   if (deload) {

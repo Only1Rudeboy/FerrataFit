@@ -236,3 +236,112 @@ export function completionLine(a) {
   if (a.feel === 'ZU_VIEL') return 'Eingetragen. Gut, dass du es weißt — die App rechnet ab jetzt damit.';
   return `Eingetragen. ${a.climbMeters || 0} Höhenmeter am Fels.`;
 }
+
+// ---------------------------------------------------------------------------
+// Belastung und Erholung
+// ---------------------------------------------------------------------------
+// Spiegelt data/Recovery.kt der Android-App. Beide Fassungen müssen dieselben
+// Zahlen liefern — der Gleichlauf-Test rechnet identische Fälle in beiden nach.
+//
+// Ein Klettersteig ist nicht gleich Klettersteig: Der Übungssteig ist nach einer
+// Stunde vorbei, der Saulakopf ist ein voller Bergtag. Jede Begehung bekommt deshalb
+// eine Belastungszahl, und aus ihr folgt ein Erholungsfenster, das den Wochenplan
+// verschiebt und die Gewichtsvorschläge senkt.
+
+const GRADE_FACTOR = { A: 0.6, B: 0.8, C: 1.0, D: 1.25, E: 1.5, F: 1.7 };
+const FEEL_FACTOR = { LOCKER: 0.85, GUT: 1.0, FORDERND: 1.15, GRENZWERTIG: 1.35, ZU_VIEL: 1.5 };
+
+/** 90 bpm im Mittel heißt gemütlich (×0,85), 170 heißt Vollgas (×1,3). Gedeckelt. */
+export function hrFactor(avgHr) {
+  if (!avgHr || avgHr <= 0) return 1.0;
+  const t = Math.min(1, Math.max(0, (avgHr - 90) / 80));
+  return 0.85 + t * 0.45;
+}
+
+/**
+ * Die Belastungszahl. Grobe Eichung: unter 20 Übungssteig, 30–60 ordentlicher
+ * Trainingstag, 60–90 großer Bergtag, darüber ein Tag an der Grenze.
+ */
+export function tourLoad(a) {
+  const volume = (a.climbMeters || 0) * 0.08 + (a.durationMin || 0) * 0.06;
+  const g = GRADE_FACTOR[gradeLabel(gradeIndex(a.grade))] ?? 1.0;
+  const f = FEEL_FACTOR[a.feel] ?? 1.0;
+  return Math.round(volume * g * f * hrFactor(a.avgHr));
+}
+
+export function loadLabel(score) {
+  if (score < 20) return 'Lockerer Tag';
+  if (score < 30) return 'Spürbarer Tag';
+  if (score < 60) return 'Ordentlicher Trainingstag';
+  if (score < 90) return 'Großer Bergtag';
+  return 'Tag an der Grenze';
+}
+
+export const RECOVERY = {
+  ERHOLUNG: { id: 'ERHOLUNG', label: 'Erholung', factor: 0.8 },
+  ANGESCHLAGEN: { id: 'ANGESCHLAGEN', label: 'Angeschlagen', factor: 0.9 },
+};
+
+export const fullRestHours = (score) => (score < 60 ? 0 : score < 90 ? 24 : 48);
+export const lightHours = (score) => (score < 30 ? 0 : 24);
+
+/**
+ * Das aktive Erholungsfenster — oder null. Bei mehreren Begehungen gilt die strengste
+ * noch aktive: Der Körper erholt sich parallel, nicht nacheinander.
+ */
+export function recoveryState(ascents, now = Date.now()) {
+  const HOUR = 3600000;
+  const states = [];
+  for (const a of ascents) {
+    if (!a.date || a.date > now || a.date < now - 5 * 24 * HOUR) continue;
+    const score = tourLoad(a);
+    const fullRest = fullRestHours(score);
+    const total = fullRest + lightHours(score);
+    if (!total) continue;
+    const fullRestEnd = a.date + fullRest * HOUR;
+    const totalEnd = a.date + total * HOUR;
+    if (now < fullRestEnd) states.push({ level: RECOVERY.ERHOLUNG, until: fullRestEnd, sourceName: a.name, score });
+    else if (now < totalEnd) states.push({ level: RECOVERY.ANGESCHLAGEN, until: totalEnd, sourceName: a.name, score });
+  }
+  states.sort((x, y) => (x.level.id === y.level.id ? y.until - x.until
+    : x.level.id === 'ERHOLUNG' ? -1 : 1));
+  return states[0] || null;
+}
+
+export const recoveryHoursLeft = (state, now = Date.now()) =>
+  Math.max(1, Math.floor((state.until - now) / 3600000) + 1);
+
+/** Der Satz zur Einordnung — direkt nach dem Eintragen gezeigt. */
+export function planLine(score) {
+  const fullRest = fullRestHours(score);
+  const total = fullRest + lightHours(score);
+  if (!total) return 'Der Plan läuft normal weiter.';
+  if (!fullRest) return 'Die App plant den nächsten Tag bewusst leichter.';
+  return `Die App schiebt die nächste Krafteinheit auf — erst ${fullRest} Stunden Erholung, ` +
+    'danach noch einen Tag leichter.';
+}
+
+/** Gleicher Kalendertag in der Zeitzone des Geräts. */
+export function sameDay(a, b) {
+  if (!a || !b || a <= 0 || b <= 0) return false;
+  return new Date(a).toDateString() === new Date(b).toDateString();
+}
+
+/**
+ * Deckt eine Begehung die offene Etappe ab?
+ *
+ * Genau dann, wenn an ihrem Tag noch keine Etappe abgehakt wurde. Damit zählt sie
+ * einmal pro Tag — nicht öfter, und nicht zusätzlich zu einer Einheit am Gerät.
+ * Die Belastungsschwelle (countsAsTraining) kommt separat dazu.
+ */
+export function coversStage(progress, date) {
+  return !progress.some((p) => p.stageId !== EXTRA_STAGE_ID && sameDay(p.at, date));
+}
+
+/**
+ * Ab dieser Belastung deckt eine Begehung die offene Etappe ab. Ein Übungssteig von
+ * einer Stunde ist kein Trainingstag — er hakt keine Krafteinheit ab, so wenig wie
+ * ein Spaziergang das täte. Die Höhenmeter zählen trotzdem.
+ */
+export const COVERS_STAGE_SCORE = 20;
+export const countsAsTraining = (score) => score >= COVERS_STAGE_SCORE;

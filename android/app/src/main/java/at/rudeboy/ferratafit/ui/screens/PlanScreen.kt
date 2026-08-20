@@ -122,7 +122,10 @@ fun PlanScreen(
                             Spacer(Modifier.height(12.dp))
 
                             exercises.forEach { ex ->
-                                val sug = Progression.suggest(ex, state.sessions, state.profile, now)
+                                val sug = Progression.suggest(
+                                    ex, state.sessions, state.profile, now,
+                                    Recovery.state(state.ascents, now)
+                                )
                                 ExerciseRow(
                                     exercise = ex,
                                     suggestion = sug,

@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +52,7 @@ import at.rudeboy.ferratafit.data.Fit
 import at.rudeboy.ferratafit.data.Stats
 import at.rudeboy.ferratafit.data.buildSteigPass
 import at.rudeboy.ferratafit.ui.EmptyHint
+import at.rudeboy.ferratafit.ui.FerrataMap
 import at.rudeboy.ferratafit.ui.FfCard
 import at.rudeboy.ferratafit.ui.Palette
 import at.rudeboy.ferratafit.ui.Pill
@@ -82,6 +84,12 @@ fun FerrataScreen(
     var region by remember { mutableStateOf<String?>(null) }
     var openId by remember { mutableStateOf<String?>(null) }
     var showTooEarly by remember { mutableStateOf(false) }
+    var showMap by rememberSaveable { mutableStateOf(false) }
+
+    // Passung aller Steige, ungefiltert — die Karte zeigt immer das ganze Land.
+    val fitById = remember(state.ascents, readiness) {
+        FerrataRoutes.all.associate { it.id to Ferrata.fitFor(it, state.ascents, readiness) }
+    }
 
     val sorted = remember(state.ascents, readiness, region) {
         FerrataRoutes.all
@@ -113,7 +121,58 @@ fun FerrataScreen(
             }
         }
 
-        item { RegionFilter(region) { region = it } }
+        item {
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                FilterChip(if (showMap) "☰ Liste" else "🗺 Karte", showMap) { showMap = !showMap }
+                FilterChip("Alle Gebiete", region == null && !showMap) { region = null; showMap = false }
+                FerrataRoutes.regions.forEach { r ->
+                    FilterChip(r.substringBefore(" ("), region == r && !showMap) {
+                        region = r; showMap = false
+                    }
+                }
+            }
+        }
+
+        if (showMap) {
+            item {
+                FfCard(padding = 10.dp) {
+                    FerrataMap(
+                        fits = fitById,
+                        selectedId = openId,
+                        onSelect = { openId = it }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MapLegend(Palette.Emerald, "passt")
+                        MapLegend(Palette.Amber, "mit Puffer")
+                        MapLegend(Palette.Violet, "nächster Schritt")
+                        MapLegend(Palette.TextLow, "noch nicht")
+                    }
+                }
+            }
+            // Der angetippte Steig erscheint direkt unter der Karte — aufgeklappt,
+            // mit allem, was die Liste auch zeigt.
+            openId?.let { id ->
+                FerrataRoutes.byId(id)?.let { route ->
+                    item {
+                        RouteCard(
+                            route = route,
+                            fit = fitById[id] ?: Fit.ZU_FRUEH,
+                            planned = id in state.plannedRouteIds,
+                            expanded = true,
+                            onToggle = { openId = null },
+                            onPlan = { onTogglePlanned(id) }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (!showMap) {
+        item { Spacer(Modifier.height(0.dp)) }
 
         // Die drei offenen Kategorien in fester Reihenfolge — passend, dann knapp, dann Ziel.
         listOf(Fit.PASST, Fit.KNAPP, Fit.ZIEL).forEach { fit ->
@@ -184,6 +243,8 @@ fun FerrataScreen(
             }
         }
 
+        }
+
         item {
             Spacer(Modifier.height(6.dp))
             Row(Modifier.padding(horizontal = 4.dp)) {
@@ -197,6 +258,15 @@ fun FerrataScreen(
             }
             Spacer(Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+private fun MapLegend(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(5.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = Palette.TextLow)
     }
 }
 

@@ -8,6 +8,9 @@ import at.rudeboy.ferratafit.data.Catalog
 import at.rudeboy.ferratafit.data.Profile
 import at.rudeboy.ferratafit.data.ProgressionKind
 import at.rudeboy.ferratafit.data.Progression
+import at.rudeboy.ferratafit.data.Recovery
+import at.rudeboy.ferratafit.data.TourLoad
+import at.rudeboy.ferratafit.health.OutdoorSession
 import at.rudeboy.ferratafit.data.Session
 import at.rudeboy.ferratafit.data.SessionEdit
 import at.rudeboy.ferratafit.data.SetLog
@@ -161,7 +164,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 return@mapNotNull null
             }
             ActiveEntry(
-                suggestion = Progression.suggest(ex, s.sessions, s.profile, d.startedAt),
+                suggestion = Progression.suggest(
+                    ex, s.sessions, s.profile, d.startedAt,
+                    Recovery.state(s.ascents, d.startedAt)
+                ),
                 sets = de.sets.map { ActiveSet(it.weightKg, it.reps, it.seconds, it.done) }
             )
         }
@@ -185,7 +191,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun rebuild(d: StageDraft): ActiveStage? {
-        val stage = Journey.stage(d.stageId) ?: return null
+        // Die eingeschobene Erholung steht nicht im Etappenkatalog — sie wird aus dem
+        // Erholungszustand neu gebaut. Ist der inzwischen abgelaufen, reicht der Name nicht
+        // mehr; dann eben ohne.
+        val stage = if (d.stageId == Ferrata.EXTRA_STAGE_ID) {
+            Recovery.breakStage(
+                Recovery.state(state.value.ascents, d.startedAt)?.sourceName ?: "der Tour"
+            )
+        } else {
+            Journey.stage(d.stageId) ?: return null
+        }
         return ActiveStage(
             stage = stage,
             startedAt = d.startedAt,
@@ -442,6 +457,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------- Am Fels ----------------
 
     /**
+     * Aufzeichnungen von der Uhr, die noch zu keiner Begehung gehören.
+     * Werden beim Öffnen des Eintragsformulars geladen — nicht ständig, denn die
+     * Abfrage samt Pulsproben ist die teuerste der ganzen Health-Anbindung.
+     */
+    private val _tourCandidates = MutableStateFlow<List<OutdoorSession>>(emptyList())
+    val tourCandidates: StateFlow<List<OutdoorSession>> = _tourCandidates.asStateFlow()
+
+    fun loadTourCandidates() {
+        if (!state.value.profile.healthConnectEnabled) return
+        viewModelScope.launch {
+            val linked = state.value.ascents.map { it.watchStart }.toSet()
+            _tourCandidates.value = health.readOutdoorSessions(days = 14)
+                .filterNot { it.startedAt in linked }
+                .take(5)
+        }
+    }
+
+
+    /**
      * Trägt eine Begehung ein.
      *
      * Sie landet an zwei Stellen: in [AppState.ascents] als Grundlage für Rang und
@@ -454,10 +488,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val before = Journey.earnedBadges(badgeSnapshot()).map { it.id }.toSet()
         val progressBefore = state.value.progress
 
-        // Der Tag am Fels zählt als Training — aber nur einmal. Wer an dem Tag schon
-        // eine Etappe abgehakt hat, bekommt keine zweite gutgeschrieben, und eine zweite
-        // Begehung am selben Tag schiebt den Wochenzyklus nicht weiter.
-        val covers = Ferrata.coversStage(progressBefore, ascent.date)
+        // Der Tag am Fels zählt als Training — aber nur einmal, und nur wenn er auch
+        // einer war: Ein kurzer Übungssteig hakt keine Krafteinheit ab, so wenig wie
+        // ein Spaziergang das täte. Wer an dem Tag schon eine Etappe abgehakt hat,
+        // bekommt ohnehin keine zweite gutgeschrieben.
+        val covers = Ferrata.coversStage(progressBefore, ascent.date) &&
+            Recovery.countsAsTraining(TourLoad.score(ascent))
         val stage = Journey.current(progressBefore)
 
         store.update { s ->
@@ -485,8 +521,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _freshBadges.value = fresh
         }
 
+        // Was hat der Tag gekostet, und was folgt daraus für den Plan?
+        val score = TourLoad.score(ascent)
+        val einordnung = "${TourLoad.label(score)}. ${Recovery.planLine(score)}"
+
         val line = Ferrata.completionLine(ascent)
-        notify(if (covers) "$line Die Etappe „${stage.title}“ ist damit abgehakt." else line)
+        notify(
+            if (covers) "$line Die Etappe „${stage.title}“ ist damit abgehakt. $einordnung"
+            else "$line $einordnung"
+        )
+    }
+
+    /**
+     * Die eingeschobene Erholungseinheit nach einer großen Tour.
+     *
+     * Sie trägt die Sonderkennung und rückt den Wochenzyklus nicht weiter — die
+     * aufgeschobene Krafteinheit bleibt stehen, bis das Fenster um ist.
+     */
+    fun startRecoveryBreak() {
+        val rec = Recovery.state(state.value.ascents, System.currentTimeMillis()) ?: return
+        val stage = Recovery.breakStage(rec.sourceName)
+        _activeStage.value = ActiveStage(
+            stage = stage,
+            startedAt = System.currentTimeMillis(),
+            drills = stage.mobilityIds.map { ActiveDrill(it) }
+        )
+        persistDraft()
     }
 
     fun removeAscent(id: String) = store.update { s ->

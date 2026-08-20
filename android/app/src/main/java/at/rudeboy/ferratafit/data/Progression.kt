@@ -207,12 +207,21 @@ object Progression {
         exercise: Exercise,
         sessions: List<Session>,
         profile: Profile,
-        now: Long
+        now: Long,
+        /**
+         * Aktives Erholungsfenster nach einer Begehung — senkt die Vorschläge.
+         * Absichtlich mit Vorgabewert: Aufrufer ohne Zugriff auf die Begehungen
+         * (etwa die Plan-Vorschau) bekommen den normalen Vorschlag.
+         */
+        recovery: RecoveryState? = null
     ): Suggestion {
         val week = weekInCycle(profile, now)
         val taper = taperStage(profile, now)
-        // Der Taper hat Vorrang: Beides zusammen würde die Last doppelt reduzieren.
-        val deload = taper == null && isDeloadWeek(week)
+        // Genau eine Reduktion, nie mehrere übereinander. Rangfolge: Der Taper vor der
+        // Tour schlägt alles; danach das Erholungsfenster nach einer Tour — es ist
+        // akuter als die planmäßige Entlastungswoche; die kommt zuletzt.
+        val rec = if (taper == null) recovery else null
+        val deload = taper == null && rec == null && isDeloadWeek(week)
         val hist = history(exercise.id, sessions)
 
         // --- Fall 1: noch nie trainiert ---
@@ -274,6 +283,35 @@ object Progression {
                                else "$lastBestReps Wdh.",
                     reason = taperLabel(taper, days)
                 )
+            }
+        }
+
+        // --- Fall 1c: Eine Tour wirkt noch nach ---
+        if (rec != null) {
+            val f = rec.level.loadFactor
+            val sets = max(2, exercise.sets - 1)
+            val warum = "${rec.sourceName} steckt dir noch in den Armen — " +
+                if (rec.level == RecoveryLevel.ERHOLUNG)
+                    "heute wäre Erholung besser. Wenn du trainierst, dann deutlich leichter."
+                else "heute bewusst leichter, morgen geht es normal weiter."
+            return when (exercise.progression) {
+                ProgressionKind.TIME -> Suggestion(
+                    exercise, Advice.DELOAD, 0.0, 0, (lastBestSecs * f).roundToInt(), sets,
+                    headline = "${(lastBestSecs * f).roundToInt()} s",
+                    reason = warum,
+                    previousHeadline = "$lastBestSecs s"
+                )
+                else -> {
+                    val w = roundToPlate(lastLoad * f, profile.plateStepKg)
+                    Suggestion(
+                        exercise, Advice.DELOAD, w,
+                        (lastBestReps * f).roundToInt().coerceAtLeast(exercise.repMin), 0, sets,
+                        headline = if (exercise.progression == ProgressionKind.WEIGHT) fmtKg(w)
+                                   else "${(lastBestReps * f).roundToInt().coerceAtLeast(exercise.repMin)} Wdh.",
+                        reason = warum,
+                        previousHeadline = if (exercise.progression == ProgressionKind.WEIGHT) fmtKg(lastLoad) else null
+                    )
+                }
             }
         }
 
@@ -451,9 +489,12 @@ object Progression {
         day: TrainingDay,
         state: AppState,
         now: Long
-    ): List<Suggestion> =
-        PlanBuilder.exercisesFor(day, state.profile, state.hiddenExercises)
-            .map { suggest(it, state.sessions, state.profile, now) }
+    ): List<Suggestion> {
+        // Wirkt eine Tour noch nach, sinken alle Vorschläge der Einheit gemeinsam.
+        val rec = Recovery.state(state.ascents, now)
+        return PlanBuilder.exercisesFor(day, state.profile, state.hiddenExercises)
+            .map { suggest(it, state.sessions, state.profile, now, rec) }
+    }
 }
 
 /** Kilogramm hübsch: „25 kg“ statt „25.0 kg“. */

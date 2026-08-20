@@ -10,10 +10,11 @@ import * as D from './data.js';
 import * as J from './journey.js';
 import { parseBodyFile, mergeBody } from './bodyimport.js';
 import * as FE from './ferrata.js';
-import { FERRATAS, ferrataRegions } from './ferratas.js';
+import { FERRATAS, ferrataById, ferrataRegions } from './ferratas.js';
+import { GEO_BOUNDS, GEO_POINTS, GEO_OUTLINE, GEO_LANDMARKS } from './ferrageo.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 
 const DEFAULT_STATE = {
   profile: {
@@ -49,6 +50,7 @@ let activeStage = null; // laufende Mobility-/Ausdauer-Etappe
 let restTimer = null;
 let trendPick = null;
 let ferrataRegion = null;   // Gebietsfilter in der Missionsübersicht
+let ferrataMap = false;     // Karte statt Liste
 let ferrataOpen = null;     // aufgeklappte Route
 let showTooEarly = false;
 let ascentForm = null;      // offenes Eintragsformular
@@ -156,7 +158,8 @@ function restoreDraft(d) {
       if (!ex) { verloren++; return null; }
       // Mit dem ursprünglichen Startzeitpunkt rechnen, nicht mit jetzt — sonst stünde
       // nach einer Unterbrechung über Mitternacht eine andere Empfehlung da.
-      return { sug: D.suggest(ex, state.sessions, state.profile, w.startedAt), sets: de.sets };
+      return { sug: D.suggest(ex, state.sessions, state.profile, w.startedAt,
+        FE.recoveryState(state.ascents, w.startedAt)), sets: de.sets };
     }).filter(Boolean);
 
     if (entries.length) {
@@ -176,7 +179,17 @@ function restoreDraft(d) {
     }
   }
   if (d.stage) {
-    const stage = J.stageById(d.stage.stageId);
+    // Die eingeschobene Erholung steht nicht im Etappenkatalog — sie wird aus dem
+    // Erholungszustand neu gebaut.
+    const stage = d.stage.stageId === FE.EXTRA_STAGE_ID
+      ? {
+          id: FE.EXTRA_STAGE_ID, kind: J.STAGE_KIND.RECOVERY,
+          title: 'Erholung',
+          subtitle: `Nach: ${FE.recoveryState(state.ascents, d.stage.startedAt)?.sourceName || 'der Tour'}`,
+          icon: '🛌', meters: 30, longHold: true,
+          mobilityIds: ['forearm_flexor', 'forearm_extensor', 'child_pose', 'pigeon', 'calf_wall', 'neck'],
+        }
+      : J.stageById(d.stage.stageId);
     if (stage) {
       activeStage = {
         stage,
@@ -563,6 +576,11 @@ function viewHome() {
   const readiness = D.ferrataReadiness(state.sessions, now);
   const streak = D.weeklyStreak(state.sessions, now);
   const ringColor = readiness >= 65 ? 'var(--emerald)' : readiness >= 35 ? 'var(--sky)' : 'var(--amber)';
+  const recovery = FE.recoveryState(state.ascents, now);
+  // Nach einer großen Tour wird die Krafteinheit aufgeschoben — der Plan passt sich der
+  // Tour an, nicht umgekehrt. Leichte Etappen bleiben: Genau die sind jetzt richtig.
+  const deferStrength = recovery && recovery.level.id === 'ERHOLUNG'
+    && stage.kind === J.STAGE_KIND.STRENGTH;
 
   // Kraftetappen zeigen direkt, was heute aufgelastet wird.
   let upsHtml = '';
@@ -570,7 +588,7 @@ function viewHome() {
   if (stage.kind === J.STAGE_KIND.STRENGTH) {
     const day = J.dayForStage(stage);
     const exs = D.exercisesFor(day, p, state.hiddenExercises);
-    const ups = exs.map((e) => D.suggest(e, state.sessions, p, now))
+    const ups = exs.map((e) => D.suggest(e, state.sessions, p, now, FE.recoveryState(state.ascents, now)))
       .filter((s) => s.advice === D.ADVICE.INCREASE);
     statsHtml = `<div class="row" style="gap:22px;margin-top:14px">
       <div><div style="font-size:17px;font-weight:600">${exs.length}</div><div class="dim" style="font-size:10.5px">Übungen</div></div>
@@ -640,11 +658,22 @@ function viewHome() {
         ${statsHtml}
       </div>
       <div style="padding:18px">
+        ${deferStrength ? `
+          <div class="pill violet" style="margin-bottom:10px">${esc(FE.loadLabel(recovery.score))} — ${esc(recovery.sourceName)}</div>
+          <p class="muted" style="margin:0 0 14px;font-size:13.5px">Die Tour steckt dir noch in den
+            Armen. Die App schiebt „${esc(stage.title)}" auf — noch etwa
+            ${FE.recoveryHoursLeft(recovery, now)} Stunden. Heute ist Lockern das bessere Training.</p>
+          <button class="btn primary" style="background:var(--violet)" data-recovery-break>Erholung starten</button>
+          <button class="btn ghost small" style="margin-top:8px" data-stage-start="${stage.id}">
+            Trotzdem trainieren — die Vorschläge bleiben gesenkt</button>
+        ` : `
+        ${recovery && recovery.level.id === 'ANGESCHLAGEN' && stage.kind === J.STAGE_KIND.STRENGTH
+          ? `<div class="pill violet" style="margin-bottom:10px">Noch leicht angeschlagen — Vorschläge um 10 % gesenkt</div>` : ''}
         ${stage.kind === J.STAGE_KIND.STRENGTH && deload
           ? `<div class="pill emerald" style="margin-bottom:10px">Entlastungswoche — bewusst leichter</div>` : ''}
         ${upsHtml}
         ${stage.hint ? `<p class="muted" style="margin:0 0 14px;font-size:13.5px">${esc(stage.hint)}</p>` : ''}
-        <button class="btn primary" data-stage-start="${stage.id}">▶ Etappe starten</button>
+        <button class="btn primary" data-stage-start="${stage.id}">▶ Etappe starten</button>`}
         <div class="row" style="gap:8px;margin-top:8px">
           ${stage.kind === J.STAGE_KIND.STRENGTH
             ? `<button class="link" data-goto-plan="${stage.dayId}">Plan ansehen</button>` : ''}
@@ -751,7 +780,7 @@ function viewPlan() {
         </div>
         ${isOpen ? `<div style="padding:0 16px 16px">
           <p style="color:var(--sky);font-size:13.5px;margin:0 0 12px">${esc(day.subtitle)}</p>
-          ${exs.map((ex) => exerciseRow(ex, D.suggest(ex, state.sessions, p, now), false)).join('')}
+          ${exs.map((ex) => exerciseRow(ex, D.suggest(ex, state.sessions, p, now, FE.recoveryState(state.ascents, now)), false)).join('')}
           ${hidden.length ? `<div class="section-title" style="margin-top:12px"><span>Ausgeblendet</span></div>
             ${hidden.map((ex) => exerciseRow(ex, null, true)).join('')}` : ''}
           <button class="btn ${isNext ? 'primary' : 'ghost'} small" style="margin-top:10px"
@@ -1077,12 +1106,28 @@ function viewFerrata() {
     </button>
 
     <div class="chips">
-      <button class="chip ${!ferrataRegion ? 'on' : ''}" data-region="">Alle Gebiete</button>
-      ${ferrataRegions.map((r) => `<button class="chip ${ferrataRegion === r ? 'on' : ''}"
+      <button class="chip ${ferrataMap ? 'on' : ''}" data-ferrata-map>${ferrataMap ? '☰ Liste' : '🗺 Karte'}</button>
+      <button class="chip ${!ferrataRegion && !ferrataMap ? 'on' : ''}" data-region="">Alle Gebiete</button>
+      ${ferrataRegions.map((r) => `<button class="chip ${ferrataRegion === r && !ferrataMap ? 'on' : ''}"
         data-region="${esc(r)}">${esc(r.split(' (')[0])}</button>`).join('')}
     </div>
 
-    ${section(FE.FIT.PASST)}${section(FE.FIT.KNAPP)}${section(FE.FIT.ZIEL)}
+    ${ferrataMap ? `
+      <div class="card" style="padding:10px">
+        ${mapSvg(Object.fromEntries(FERRATAS.map((r) => [r.id, FE.fitFor(r, state.ascents, readiness)])), ferrataOpen)}
+        <div class="row" style="gap:12px;margin-top:8px;flex-wrap:wrap">
+          <span class="dim" style="font-size:11px"><span class="fit-dot emerald"></span>passt</span>
+          <span class="dim" style="font-size:11px"><span class="fit-dot amber"></span>mit Puffer</span>
+          <span class="dim" style="font-size:11px"><span class="fit-dot violet"></span>nächster Schritt</span>
+          <span class="dim" style="font-size:11px"><span class="fit-dot dim"></span>noch nicht</span>
+        </div>
+      </div>
+      ${ferrataOpen && ferrataById(ferrataOpen)
+        ? routeCard(ferrataById(ferrataOpen), FE.fitFor(ferrataById(ferrataOpen), state.ascents, readiness))
+        : `<p class="dim" style="font-size:12.5px;text-align:center;margin-top:10px">
+             Einen Punkt antippen — Punkte am selben Fels wechseln reihum.</p>`}
+    ` : `
+    ${section(FE.FIT.PASST)}${section(FE.FIT.KNAPP)}${section(FE.FIT.ZIEL)}`}
 
     ${!group(FE.FIT.PASST).length && !group(FE.FIT.KNAPP).length && !group(FE.FIT.ZIEL).length ? `
       <div class="empty" style="margin-top:16px">${
@@ -1091,7 +1136,7 @@ function viewFerrata() {
           : esc(pass.reason) + ' Die Steige darunter stehen weiter offen — sie sind nur ' +
             'noch nichts, wozu die App raten würde.'}</div>` : ''}
 
-    ${tooEarly.length ? `
+    ${!ferrataMap && tooEarly.length ? `
       <div class="card" style="margin-top:16px;padding:14px;cursor:pointer" data-toggle-early>
         <div class="row">
           <div class="grow">
@@ -1121,6 +1166,55 @@ function viewFerrata() {
 
     <p class="muted" style="font-size:12px;margin-top:20px">ℹ️ ${esc(FE.DISCLAIMER)}</p>
   </div>`;
+}
+
+/**
+ * Die Karte der Klettersteige — selbst gezeichnetes SVG statt einer Kartenbibliothek.
+ *
+ * Die App lädt nichts nach: keine Kacheln, keine Fremdanbieter, funktioniert am Berg
+ * ohne Netz. Für „wo liegt was, und was passt zu mir" reicht die Silhouette des
+ * Landes; für den Zustieg braucht man ohnehin eine echte Wanderkarte.
+ */
+function mapSvg(fits, selectedId) {
+  const B = GEO_BOUNDS;
+  // Längengrade werden zum Pol hin schmaler — ohne den Faktor wäre das Land
+  // um ein Drittel in die Breite gezogen.
+  const lonScale = Math.cos(((B.minLat + B.maxLat) / 2) * Math.PI / 180);
+  const W = 1000;
+  const H = W * (B.maxLat - B.minLat) / ((B.maxLon - B.minLon) * lonScale);
+  const px = (lon) => ((lon - B.minLon) / (B.maxLon - B.minLon)) * W;
+  const py = (lat) => (1 - (lat - B.minLat) / (B.maxLat - B.minLat)) * H;
+
+  const outline = GEO_OUTLINE.map(([lat, lon], i) =>
+    `${i ? 'L' : 'M'}${px(lon).toFixed(1)},${py(lat).toFixed(1)}`).join(' ') + ' Z';
+
+  const fitColor = (f) => f === FE.FIT.PASST ? 'var(--emerald)'
+    : f === FE.FIT.KNAPP ? 'var(--amber)'
+    : f === FE.FIT.ZIEL ? 'var(--violet)' : 'var(--text-low)';
+
+  // Graue zuerst, farbige darüber, der gewählte zuoberst
+  const pts = [...GEO_POINTS].sort((a, b) => {
+    const rank = (p) => p.id === selectedId ? 2 : (fits[p.id] !== FE.FIT.ZU_FRUEH ? 1 : 0);
+    return rank(a) - rank(b);
+  });
+
+  return `
+  <svg viewBox="0 0 ${W} ${H.toFixed(0)}" style="width:100%;display:block" role="img"
+       aria-label="Karte der Vorarlberger Klettersteige">
+    <path d="${outline}" fill="var(--surface-high)" stroke="var(--outline)" stroke-width="2.5"/>
+    ${GEO_LANDMARKS.map((l) => `
+      <circle cx="${px(l.lon).toFixed(1)}" cy="${py(l.lat).toFixed(1)}" r="4" fill="var(--text-low)"/>
+      <text x="${(px(l.lon) + 9).toFixed(1)}" y="${(py(l.lat) - 8).toFixed(1)}"
+            font-size="22" fill="var(--text-low)">${esc(l.name)}</text>`).join('')}
+    ${pts.map((p) => {
+      const sel = p.id === selectedId;
+      return `${sel ? `<circle cx="${px(p.lon).toFixed(1)}" cy="${py(p.lat).toFixed(1)}" r="22"
+          fill="${fitColor(fits[p.id])}" opacity=".25"/>
+        <circle cx="${px(p.lon).toFixed(1)}" cy="${py(p.lat).toFixed(1)}" r="12" fill="var(--text-high)"/>` : ''}
+      <circle cx="${px(p.lon).toFixed(1)}" cy="${py(p.lat).toFixed(1)}" r="${sel ? 9 : 8}"
+        fill="${fitColor(fits[p.id])}" data-map-route="${esc(p.id)}" style="cursor:pointer"/>`;
+    }).join('')}
+  </svg>`;
 }
 
 /** Rang als Überschrift, Form als Balken, darunter die eine Zahl, die zählt. */
@@ -1273,6 +1367,9 @@ function viewAscentForm() {
           <input id="asc-meters" type="number" inputmode="numeric" placeholder="Klettermeter" value="${f.meters}">
           <input id="asc-minutes" type="number" inputmode="numeric" placeholder="Dauer in min" value="${f.minutes}">
         </div>
+        <div class="row" style="gap:10px;margin-top:10px">
+          <input id="asc-hr" type="number" inputmode="numeric" placeholder="Ø Puls (optional)" value="${f.avgHr || ''}">
+        </div>
         <p class="dim" style="font-size:12px;margin:9px 0 0">Klettermeter meint den gesicherten
           Steig, nicht den ganzen Tag. Der Zustieg zählt für den Rang nicht mit.</p>
       </div>
@@ -1337,13 +1434,23 @@ function saveAscent() {
     turnedBack: !!f.turnedBack,
     partners: (f.partners || '').trim(),
     note: (f.note || '').trim(),
+    avgHr: parseInt(f.avgHr, 10) || 0,
   };
 
   const before = J.earnedBadges(badgeSnapshot()).map((b) => b.id);
+
+  // Der Tag am Fels zählt als Training — aber nur einmal, und nur wenn er auch einer
+  // war: Ein kurzer Übungssteig hakt keine Krafteinheit ab. Deckt die Begehung den Tag
+  // ab, trägt sie die Kennung der offenen Etappe und rückt den Zyklus um genau eine
+  // weiter; sonst steht sie unter der Sonderkennung außerhalb des Rhythmus.
+  const score = FE.tourLoad(a);
+  const covers = FE.coversStage(state.progress, a.date) && FE.countsAsTraining(score);
+  const openStage = J.currentStage(state.progress);
+
   update((st) => {
     st.ascents = [...st.ascents, a];
     st.progress = [...st.progress, {
-      stageId: J.EXTRA_STAGE_ID,
+      stageId: covers ? openStage.id : J.EXTRA_STAGE_ID,
       kind: J.STAGE_KIND.FERRATA,
       meters: a.climbMeters,
       at: a.date,
@@ -1360,7 +1467,9 @@ function saveAscent() {
     update((st) => { st.seenBadges = after.map((b) => b.id); });
     showBadgeDialog(fresh);
   }
-  toast(FE.completionLine(a));
+  // Was hat der Tag gekostet, und was folgt daraus für den Plan?
+  const etappe = covers ? ` Die Etappe „${openStage.title}" ist damit abgehakt.` : '';
+  toast(`${FE.completionLine(a)}${etappe} ${FE.loadLabel(score)}. ${FE.planLine(score)}`);
   render();
 }
 
@@ -1458,7 +1567,7 @@ function startWorkout(dayId) {
   const now = Date.now();
   const day = D.dayById(dayId);
   const entries = D.exercisesFor(day, state.profile, state.hiddenExercises).map((ex) => {
-    const sug = D.suggest(ex, state.sessions, state.profile, now);
+    const sug = D.suggest(ex, state.sessions, state.profile, now, FE.recoveryState(state.ascents, now));
     return {
       sug,
       sets: Array.from({ length: sug.sets }, () => ({
@@ -1563,6 +1672,33 @@ function viewWorkout() {
 // ---------------------------------------------------------------------------
 // Etappen ohne Gerät: Dehnen, Regeneration, Ausdauer
 // ---------------------------------------------------------------------------
+
+/**
+ * Die eingeschobene Erholungseinheit nach einer großen Tour.
+ * Sie trägt die Sonderkennung F0 und rückt den Wochenzyklus deshalb nicht weiter —
+ * die aufgeschobene Krafteinheit bleibt stehen, bis das Fenster um ist.
+ */
+function startRecoveryBreak() {
+  const rec = FE.recoveryState(state.ascents, Date.now());
+  if (!rec) return;
+  const stage = {
+    id: FE.EXTRA_STAGE_ID,
+    kind: J.STAGE_KIND.RECOVERY,
+    title: 'Erholung',
+    subtitle: `Nach: ${rec.sourceName}`,
+    icon: '🛌',
+    meters: 30,
+    mobilityIds: ['forearm_flexor', 'forearm_extensor', 'child_pose', 'pigeon', 'calf_wall', 'neck'],
+    longHold: true,
+  };
+  activeStage = {
+    stage,
+    startedAt: Date.now(),
+    items: stage.mobilityIds.map((id) => ({ id, done: false })),
+  };
+  saveDraft();
+  render();
+}
 
 function startStage(stageId) {
   const stage = J.stageById(stageId);
@@ -1995,6 +2131,10 @@ function bindEvents() {
   document.querySelectorAll('[data-stage-start]').forEach((b) => {
     b.onclick = () => startStage(b.dataset.stageStart);
   });
+
+  document.querySelectorAll('[data-recovery-break]').forEach((b) => {
+    b.onclick = () => startRecoveryBreak();
+  });
   document.querySelectorAll('[data-stage-skip]').forEach((b) => {
     b.onclick = () => {
       const stage = J.stageById(b.dataset.stageSkip);
@@ -2014,7 +2154,19 @@ function bindEvents() {
 /** Ereignisse im Fels-Bereich und im Eintragsformular. */
 function bindFerrata() {
   document.querySelectorAll('[data-region]').forEach((b) => {
-    b.onclick = () => { ferrataRegion = b.dataset.region || null; render(); };
+    b.onclick = () => { ferrataRegion = b.dataset.region || null; ferrataMap = false; render(); };
+  });
+
+  const mapToggle = document.querySelector('[data-ferrata-map]');
+  if (mapToggle) mapToggle.onclick = () => { ferrataMap = !ferrataMap; render(); };
+
+  document.querySelectorAll('[data-map-route]').forEach((el) => {
+    el.onclick = () => {
+      const id = el.dataset.mapRoute;
+      // Punkte am selben Fels liegen übereinander — wiederholtes Tippen wechselt durch
+      ferrataOpen = ferrataOpen === id ? null : id;
+      render();
+    };
   });
 
   document.querySelectorAll('[data-route]').forEach((el) => {
@@ -2063,7 +2215,7 @@ function bindFerrata() {
     openBtn.onclick = () => {
       ascentForm = {
         routeId: null, name: '', region: '', search: '', gradeIdx: 0,
-        meters: '', minutes: '', feel: null, flags: [], turnedBack: false,
+        meters: '', minutes: '', avgHr: '', feel: null, flags: [], turnedBack: false,
         partners: '', note: '',
       };
       render();
@@ -2152,6 +2304,7 @@ function captureAscentInputs() {
   }
   const m = get('asc-meters');       if (m !== undefined) ascentForm.meters = m;
   const t = get('asc-minutes');      if (t !== undefined) ascentForm.minutes = t;
+  const hr = get('asc-hr');          if (hr !== undefined) ascentForm.avgHr = hr;
   const pa = get('asc-partners');    if (pa !== undefined) ascentForm.partners = pa;
   const no = get('asc-note');        if (no !== undefined) ascentForm.note = no;
 }
@@ -2436,5 +2589,7 @@ export const __test = {
   viewAscentForm: (f) => { const o = ascentForm; ascentForm = f; const h = viewAscentForm(); ascentForm = o; return h; },
   startWorkout, finishWorkout, saveDraft, restoreDraft, loadDraft,
   active: () => active,
+  state: () => state,
+  saveAscent: (f) => { ascentForm = f; saveAscent(); },
   reset: () => { active = null; activeStage = null; resumeAsk = null; },
 };

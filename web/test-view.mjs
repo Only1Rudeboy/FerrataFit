@@ -154,5 +154,38 @@ t.restoreDraft({ lastTouchedAt: Date.now(), workout: { dayId: 'GIBTESNICHT', sta
   current: 0, entries: [{ exerciseId: 'pullup', sets: [{ reps: 5 }] }] } });
 ok('unbekannter Trainingstag führt nicht in ein kaputtes Training', t.active() === null);
 
+// ------------------------------------------------------------------
+// Eine Begehung wirkt auf den Plan — durch den echten Code, nicht durch eine Kopie
+// ------------------------------------------------------------------
+
+const tourForm = (over = {}) => ({
+  routeId: null, name: 'Testtour', region: '', search: '', gradeIdx: 3,
+  meters: '380', minutes: '330', avgHr: '', feel: 'GUT', flags: [],
+  turnedBack: false, partners: '', note: '', ...over,
+});
+
+// Die früheren Tests haben heute schon trainiert — für diesen Fall muss der Tag
+// frei sein, sonst greift (korrekt) die Regel „nicht zweimal am selben Tag".
+t.state().progress.forEach((p) => { p.at -= 86400000 * 3; });
+t.state().sessions.forEach((sn) => { sn.startedAt -= 86400000 * 3; sn.finishedAt -= 86400000 * 3; });
+
+const stagesBefore = t.state().progress.filter((p) => p.stageId !== 'F0').length;
+t.saveAscent(tourForm());
+const nachGross = t.state().progress;
+ok('großer Bergtag hakt die offene Etappe ab',
+  nachGross.filter((p) => p.stageId !== 'F0').length === stagesBefore + 1,
+  JSON.stringify(nachGross.at(-1)));
+ok('der Eintrag trägt die echte Etappenkennung, nicht F0',
+  nachGross.at(-1).stageId !== 'F0');
+
+// Ein Übungssteig am nächsten Tag: Höhenmeter ja, Etappe nein
+t.state().ascents.at(-1).date -= 86400000 * 2;   // die große Tour altern lassen
+t.state().progress.at(-1).at -= 86400000 * 2;
+t.saveAscent(tourForm({ name: 'Übungssteig', gradeIdx: 1, meters: '60', minutes: '75' }));
+const nachKlein = t.state().progress;
+ok('Übungssteig bleibt außerhalb des Zyklus', nachKlein.at(-1).stageId === 'F0',
+  JSON.stringify(nachKlein.at(-1)));
+ok('seine Höhenmeter zählen trotzdem', nachKlein.at(-1).meters === 60);
+
 console.log(bad === 0 ? '\nRauchtest bestanden.\n' : `\n${bad} Problem(e).\n`);
 process.exit(bad ? 1 : 0);

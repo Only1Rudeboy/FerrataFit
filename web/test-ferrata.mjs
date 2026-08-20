@@ -101,6 +101,29 @@ ok('keine versicherten Wanderwege im Katalog',
 ok('byId findet einen Steig', ferrataById(FERRATAS[0].id).name === FERRATAS[0].name);
 ok('Gebiete sind abgeleitet', ferrataRegions.length > 5);
 
+console.log('\nKartendaten');
+const { GEO_POINTS, GEO_OUTLINE, GEO_BOUNDS, GEO_LANDMARKS } = await import('./ferrageo.js');
+ok('jeder Steig hat genau einen Punkt',
+  GEO_POINTS.length === FERRATAS.length &&
+  FERRATAS.every((r) => GEO_POINTS.some((p) => p.id === r.id)),
+  `${GEO_POINTS.length} Punkte, ${FERRATAS.length} Steige`);
+ok('alle Punkte liegen im Land',
+  GEO_POINTS.every((p) => p.lat > 46.8 && p.lat < 47.65 && p.lon > 9.45 && p.lon < 10.3));
+ok('Umriss ist gefüllt', GEO_OUTLINE.length >= 40);
+ok('Orientierungsorte sind da', GEO_LANDMARKS.length >= 5);
+ok('Grenzen sind stimmig', GEO_BOUNDS.minLat < GEO_BOUNDS.maxLat && GEO_BOUNDS.minLon < GEO_BOUNDS.maxLon);
+
+// Gleichlauf: dieselben Koordinaten wie in der Android-Fassung
+const geoKt = readFileSync(join(HERE, '..', 'android', 'app', 'src', 'main', 'java', 'at',
+  'rudeboy', 'ferratafit', 'data', 'FerrataGeo.kt'), 'utf8');
+const ktPoints = [...geoKt.matchAll(/GeoPoint\("([^"]+)", ([\d.]+), ([\d.]+)\)/g)]
+  .reduce((m, x) => ({ ...m, [x[1]]: [parseFloat(x[2]), parseFloat(x[3])] }), {});
+const geoAbweichend = GEO_POINTS.filter((p) => {
+  const kt = ktPoints[p.id];
+  return !kt || Math.abs(kt[0] - p.lat) > 0.0001 || Math.abs(kt[1] - p.lon) > 0.0001;
+}).map((p) => p.id);
+ok('Web und Android zeigen dieselben Punkte', geoAbweichend.length === 0, geoAbweichend.join(', '));
+
 console.log('\nGleichlauf mit der Android-App');
 const kt = readFileSync(join(HERE, '..', 'android', 'app', 'src', 'main', 'java', 'at',
   'rudeboy', 'ferratafit', 'data', 'FerrataRoutes.kt'), 'utf8');
@@ -122,11 +145,9 @@ const HOUR = 3600000;
 const heute = 1700000000000;
 const stageLog = (id, at) => ({ stageId: id, kind: 'STRENGTH', meters: 100, at });
 
-// Die Regel spiegelt Ferrata.coversStage in der Android-App.
-const coversStage = (progress, date) =>
-  !progress.some((p) => p.stageId !== F.EXTRA_STAGE_ID && sameDay(p.at, date));
-const sameDay = (a, b) => a > 0 && b > 0 &&
-  new Date(a).toDateString() === new Date(b).toDateString();
+// Geprüft wird die ECHTE exportierte Funktion — eine lokale Kopie der Regel hätte
+// den Fehler nicht gefunden, dass die App sie gar nicht benutzt.
+const coversStage = F.coversStage;
 
 ok('ein Tag am Fels deckt die offene Etappe ab', coversStage([], heute));
 ok('nach Training am selben Tag zählt sie nicht nochmal',
@@ -136,6 +157,39 @@ ok('zweite Begehung am selben Tag schiebt nichts weiter',
 ok('Einträge außerhalb des Zyklus blockieren nicht',
   coversStage([{ stageId: F.EXTRA_STAGE_ID, kind: 'FERRATA', meters: 300, at: heute - 5 * HOUR }], heute));
 ok('gestern zählt nicht für heute', coversStage([stageLog('S1', heute - 26 * HOUR)], heute));
+
+console.log('\nBelastung und Erholung');
+// Dieselben Faelle stehen wortgleich in RecoveryTest.kt — wer hier Zahlen aendert,
+// muss sie dort mitaendern, sonst rechnen Browser und Handy verschieden.
+const tourB = (g, m, min, feel = 'GUT', hr = 0) =>
+  ({ grade: g, climbMeters: m, durationMin: min, feel, avgHr: hr, date: 0, name: 'T' });
+
+check('Kellenegg-Klasse bleibt unter 20', F.tourLoad(tourB('B/C', 60, 75)) < 20, true);
+check('Saulakopf-Klasse liegt ueber 60', F.tourLoad(tourB('D', 380, 330)) >= 60, true);
+ok('Schwierigkeit verteuert',
+  F.tourLoad(tourB('D', 300, 300)) > F.tourLoad(tourB('B', 300, 300)) * 1.4);
+ok('grenzwertig war teurer als locker',
+  F.tourLoad(tourB('C', 200, 240, 'GRENZWERTIG')) > F.tourLoad(tourB('C', 200, 240, 'LOCKER')) * 1.4);
+ok('hoher Puls hebt, ruhiger senkt',
+  F.tourLoad(tourB('C', 200, 240, 'GUT', 165)) > F.tourLoad(tourB('C', 200, 240)) &&
+  F.tourLoad(tourB('C', 200, 240, 'GUT', 95)) < F.tourLoad(tourB('C', 200, 240)));
+check('Puls ist gedeckelt',
+  F.tourLoad(tourB('C', 200, 240, 'GUT', 250)), F.tourLoad(tourB('C', 200, 240, 'GUT', 170)));
+
+// Exakte Werte — der eigentliche Gleichlauf-Anker zwischen beiden Fassungen
+check('Eichpunkt Uebungssteig', F.tourLoad(tourB('B/C', 60, 75)), 9);
+check('Eichpunkt Bergtag', F.tourLoad(tourB('D', 380, 330)), 63);
+check('Eichpunkt Grenze', F.tourLoad(tourB('D', 450, 390, 'GRENZWERTIG')), 100);
+
+const at = 1000000000000;
+const gross = { ...tourB('D', 380, 330), date: at, name: 'Saulakopf' };
+check('12 h nach dem Bergtag: Erholung',
+  F.recoveryState([gross], at + 12 * HOUR)?.level.id, 'ERHOLUNG');
+check('30 h danach: angeschlagen',
+  F.recoveryState([gross], at + 30 * HOUR)?.level.id, 'ANGESCHLAGEN');
+check('50 h danach: frei', F.recoveryState([gross], at + 50 * HOUR), null);
+check('kleine Tour oeffnet kein Fenster',
+  F.recoveryState([{ ...tourB('B', 60, 75), date: at }], at + 2 * HOUR), null);
 
 console.log('\nDie App schreibt nichts nach Health Connect');
 const manifest = readFileSync(join(HERE, '..', 'android', 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8');

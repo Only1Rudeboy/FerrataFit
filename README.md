@@ -23,9 +23,9 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   — im Browser öffnen und über „App installieren" bzw. „Zum Home-Bildschirm hinzufügen"
   wie eine App verwenden. Läuft dank Service Worker auch ohne Netz.
 
-| Heute | Am Fels | Anleitung | Dehnen | Körper |
+| Heute | Am Fels | Karte | Erholung | Anleitung |
 |---|---|---|---|---|
-| ![Startbildschirm](docs/screenshots/heute.png) | ![Missionsübersicht](docs/screenshots/amfels.png) | ![Übungsanleitung](docs/screenshots/anleitung.png) | ![Dehn-Etappe](docs/screenshots/dehnen.png) | ![Körperdaten](docs/screenshots/koerper.png) |
+| ![Startbildschirm](docs/screenshots/heute.png) | ![Missionsübersicht](docs/screenshots/amfels.png) | ![Karte](docs/screenshots/karte.png) | ![Erholungsfenster](docs/screenshots/erholung.png) | ![Übungsanleitung](docs/screenshots/anleitung.png) |
 
 ## ✨ Funktionen
 
@@ -33,6 +33,10 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   jede eingetippte Zahl und die laufende Pausenuhr wieder vor
 - **Ein Klettersteig zählt als Training** — die Begehung hakt die offene Etappe ab, mit
   den echten Klettermetern
+- **Belastungsmodell** — jede Begehung bekommt eine Zahl aus Umfang, Grad, Gefühl und
+  Puls; danach richtet sich, wie viel Erholung folgt und wie stark die Vorschläge sinken
+- **Karte** — die Silhouette Vorarlbergs mit allen 44 Einstiegen, gefärbt nach Passung,
+  komplett offline
 - **44 Vorarlberger Klettersteige** mit Missionsübersicht: Die App sortiert sie danach,
   was zu deinem Stand passt — und schlägt nie mehr als eine Stufe über dem vor, was du
   zweimal mit Reserve gegangen bist
@@ -201,22 +205,60 @@ dabei, statt Geratenes wie geprüfte Angaben aussehen zu lassen. Bei Zwischenstu
 > Die Angaben stammen aus öffentlichen Quellen und können veraltet sein.
 > **Entschieden wird am Einstieg, nicht am Handy.**
 
-## 🧗 Ein Klettersteig zählt als Training
+## 🧗 Ein Klettersteig zählt als Training — je nach Tour verschieden viel
 
-Wer am Fels war, hat an dem Tag mehr geleistet als jede Einheit am Gerät. Eine eingetragene
-Begehung hakt deshalb die offene Etappe ab — mit den **echten** Klettermetern, nicht mit dem
-pauschalen Wert der Etappe.
+Der Übungssteig am Kellenegg ist nach einer guten Stunde vorbei, der Saulakopf ist ein
+voller Bergtag mit 380 Klettermetern im Grad D. Beides pauschal gleich zu behandeln, wäre
+in beide Richtungen falsch. Deshalb bekommt jede Begehung eine **Belastungszahl** aus vier
+Quellen:
 
-Genau einmal pro Tag, und nur wenn an dem Tag noch nichts abgehakt war:
-
-| Situation | Was passiert |
+| Quelle | Was sie beiträgt |
 |---|---|
-| Begehung, sonst nichts an dem Tag | Etappe abgehakt, Höhenmeter gutgeschrieben |
-| Zweite Begehung am selben Tag | Höhenmeter gutgeschrieben, Etappe bleibt stehen |
-| Schon am Gerät trainiert | Höhenmeter gutgeschrieben, Etappe bleibt stehen |
+| **Umfang** | Klettermeter und Gesamtdauer — die Grundmenge an Arbeit |
+| **Schwierigkeit** | Der Grad als Faktor: dieselben Meter im D kosten mehr als im B |
+| **Rückmeldung** | Wie es sich angefühlt hat — die ehrlichste Angabe von allen |
+| **Uhr** | Der mittlere Puls aus der Aufzeichnung, falls vorhanden |
 
-Sonst schöbe jede weitere Tour den Wochenrhythmus um eine Etappe weiter — nach drei Steigen
-stünde plötzlich ein Ruhetag an, obwohl seit einer Woche nicht trainiert wurde.
+Und daraus folgt, was mit dem Wochenplan passiert:
+
+| Belastung | Beispiel | Was der Plan macht |
+|---|---|---|
+| unter 20 | Übungssteig, eine Stunde | Höhenmeter zählen, Plan läuft normal — das war kein Trainingstag |
+| 20–29 | Via Örfla, gemütlich | Etappe abgehakt, Plan läuft normal weiter |
+| 30–59 | ordentlicher Trainingstag | Etappe abgehakt, **nächster Tag bewusst leichter** (−10 %) |
+| 60–89 | Saulakopf | Etappe abgehakt, **24 h Erholung**, danach ein Tag leichter |
+| ab 90 | großer Tag an der Grenze | Etappe abgehakt, **48 h Erholung**, danach ein Tag leichter |
+
+„Erholung" heißt: Die App schiebt die nächste Krafteinheit auf und bietet stattdessen eine
+Dehn-Einheit an — der Wochenzyklus wartet, nichts wird übersprungen. Die Erinnerung stupst
+in der Zeit nicht zum Krafttraining. Wer trotzdem trainiert, kann — nur die
+Gewichtsvorschläge bleiben gesenkt, denn genau dafür sind sie da.
+
+### Die Uhr rechnet mit
+
+Wurde die Tour mit der Uhr aufgezeichnet (Samsung Health → Health Connect), bietet das
+Eintragsformular die Aufzeichnung zum Übernehmen an: Dauer und mittlerer Puls fließen in
+die Belastungszahl ein. 90 Schläge im Mittel heißt gemütlich, 170 heißt Vollgas — die App
+rechnet dann mit dem, was der Körper tatsächlich geleistet hat, nicht mit dem, was die
+Route auf dem Papier ist. Übernommen wird nur auf Antippen; automatisch eingetragen wird
+nichts.
+
+Weiterhin gilt: Eine Begehung hakt **höchstens eine** Etappe pro Tag ab, und nur wenn an
+dem Tag noch nichts abgehakt war. Die Belastungszahl ist dabei ausdrücklich **kein
+Kompetenznachweis** — in die Steigpass-Empfehlung fließt sie nie ein. Was du *kannst*,
+bestätigen nur saubere Begehungen; was ein Tag *gekostet* hat, ist eine andere Frage.
+
+## 🗺️ Die Karte
+
+Der Reiter „Am Fels" hat eine Kartenansicht: die Silhouette Vorarlbergs mit allen 44
+Einstiegen, gefärbt nach Passung — grün passt, gelb mit Puffer, violett der nächste
+Schritt. Ein Tipp auf einen Punkt öffnet die Routenkarte; Punkte am selben Fels wechseln
+reihum.
+
+Bewusst selbst gezeichnet statt einer Kartenbibliothek: Die App lädt nichts nach — keine
+Kacheln, keine Fremdanbieter, funktioniert am Berg ohne Netz. Für den Zustieg braucht man
+ohnehin eine echte Wanderkarte; die Koordinaten stammen aus OpenStreetMap und den
+Tourenportalen und sind auf die Wand genau, nicht auf den Meter.
 
 ## 💾 Angefangenes geht nicht verloren
 
@@ -398,6 +440,8 @@ FerrataFit/
 │   │   ├── Journey.kt                Etappen, Dehnkatalog, Höhenmeter, Abzeichen
 │   │   ├── Draft.kt                  Angefangene Einheit — überlebt den App-Wechsel
 │   │   ├── Ferrata.kt                Rang, Steigpass, Einordnung der Routen
+│   │   ├── Recovery.kt               Belastungszahl und Erholungsfenster
+│   │   ├── FerrataGeo.kt             Koordinaten für die Karte
 │   │   └── FerrataRoutes.kt          Die 44 Klettersteige
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect

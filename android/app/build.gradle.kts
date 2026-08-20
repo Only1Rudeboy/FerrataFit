@@ -25,8 +25,8 @@ android {
         applicationId = "at.rudeboy.ferratafit"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.8"
+        versionCode = 10
+        versionName = "1.9"
     }
 
     // Ein eigener Schluessel sorgt dafuer, dass spaetere Updates dieselbe Signatur

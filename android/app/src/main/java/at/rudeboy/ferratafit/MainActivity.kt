@@ -98,6 +98,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     val bodySyncing by vm.bodySyncing.collectAsState()
     val editing by vm.editing.collectAsState()
     val resumeAsk by vm.resumeAsk.collectAsState()
+    val tourCandidates by vm.tourCandidates.collectAsState()
+
     val restEndsAt by vm.restEndsAt.collectAsState()
     val restTotal by vm.restTotal.collectAsState()
     val restPausedWith by vm.restPausedWith.collectAsState()
@@ -118,6 +120,11 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     var planDayId by rememberSaveable { mutableStateOf<String?>(null) }
     var skipAsk by rememberSaveable { mutableStateOf<String?>(null) }
     var logAscent by rememberSaveable { mutableStateOf(false) }
+    // Die Uhr-Aufzeichnungen erst laden, wenn das Formular tatsächlich aufgeht —
+    // die Abfrage samt Pulsproben ist die teuerste der ganzen Health-Anbindung.
+    LaunchedEffect(logAscent) {
+        if (logAscent) vm.loadTourCandidates()
+    }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(toast) {
@@ -186,7 +193,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onStartStage = { vm.startStage(it) },
                         onSkipStage = { skipAsk = it },
                         onOpenDay = { planDayId = it; tab = 1 },
-                        onOpenBody = { tab = 2 }
+                        onOpenBody = { tab = 2 },
+                        onStartRecoveryBreak = { vm.startRecoveryBreak() }
                     )
                     Tab.PLAN -> PlanScreen(
                         state = state,
@@ -241,7 +249,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 AscentScreen(
                     onSave = { vm.addAscent(it); logAscent = false },
-                    onCancel = { logAscent = false }
+                    onCancel = { logAscent = false },
+                    watchSessions = tourCandidates
                 )
             }
         }

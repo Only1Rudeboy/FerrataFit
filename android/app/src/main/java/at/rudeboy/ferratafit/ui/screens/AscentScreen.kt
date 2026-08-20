@@ -44,6 +44,7 @@ import at.rudeboy.ferratafit.data.AscentFlag
 import at.rudeboy.ferratafit.data.Feel
 import at.rudeboy.ferratafit.data.FerrataGrade
 import at.rudeboy.ferratafit.data.FerrataRoutes
+import at.rudeboy.ferratafit.health.OutdoorSession
 import at.rudeboy.ferratafit.ui.FfCard
 import at.rudeboy.ferratafit.ui.Palette
 
@@ -61,7 +62,9 @@ import at.rudeboy.ferratafit.ui.Palette
 @Composable
 fun AscentScreen(
     onSave: (Ascent) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    /** Aufzeichnungen von der Uhr, die noch zu keiner Begehung gehören. */
+    watchSessions: List<OutdoorSession> = emptyList()
 ) {
     // Alles über rememberSaveable und als Zeichenkette gehalten: Nur so überlebt das
     // Formular ein Drehen des Geräts und einen Wechsel in eine andere App. Enums und
@@ -78,6 +81,10 @@ fun AscentScreen(
     var partners by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var search by rememberSaveable { mutableStateOf("") }
+    // Von der Uhr übernommen — fließt in die Belastungszahl ein
+    var avgHr by rememberSaveable { mutableStateOf(0) }
+    var maxHr by rememberSaveable { mutableStateOf(0) }
+    var watchStart by rememberSaveable { mutableStateOf(0L) }
 
     val route = routeId?.let { FerrataRoutes.byId(it) }
     val grade = runCatching { FerrataGrade.valueOf(gradeName) }.getOrDefault(FerrataGrade.A)
@@ -182,6 +189,65 @@ fun AscentScreen(
                                 "Schwierigkeit bitte unten selbst wählen.",
                             style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
                         )
+                    }
+                }
+            }
+        }
+
+        // --- Aufzeichnung von der Uhr ----------------------------------------
+        if (watchSessions.isNotEmpty()) {
+            item {
+                FfCard(accent = if (watchStart > 0L) Palette.Emerald else null) {
+                    Label("Von der Uhr")
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (watchStart > 0L) "Aufzeichnung übernommen — der Puls fließt in die Belastung ein."
+                        else "Aufzeichnungen der letzten Tage. Antippen übernimmt Dauer und Puls.",
+                        style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    watchSessions.forEach { w ->
+                        val chosen = watchStart == w.startedAt
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(if (chosen) Palette.Emerald.copy(alpha = 0.14f) else Palette.SurfaceHigh)
+                                .clickable {
+                                    if (chosen) {
+                                        watchStart = 0L; avgHr = 0; maxHr = 0
+                                    } else {
+                                        watchStart = w.startedAt
+                                        avgHr = w.avgHr
+                                        maxHr = w.maxHr
+                                        minutes = w.durationMin.toString()
+                                    }
+                                }
+                                .padding(horizontal = 13.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(if (w.isClimbing) "🧗" else "🥾", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    w.title.ifBlank { if (w.isClimbing) "Klettern" else "Bergtour" },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (chosen) Palette.TextHigh else Palette.TextMid
+                                )
+                                Text(
+                                    buildList {
+                                        add(dateLabel(w.startedAt))
+                                        add("${w.durationMin} min")
+                                        if (w.avgHr > 0) add("Ø ${w.avgHr} bpm")
+                                    }.joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+                                )
+                            }
+                            if (chosen) {
+                                Icon(Icons.Filled.Check, null, tint = Palette.Emerald, modifier = Modifier.size(18.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -406,7 +472,10 @@ fun AscentScreen(
                             flags = flags.map { it.name },
                             turnedBack = turnedBack,
                             partners = partners.trim(),
-                            note = note.trim()
+                            note = note.trim(),
+                            avgHr = avgHr,
+                            maxHr = maxHr,
+                            watchStart = watchStart
                         )
                     )
                 },
@@ -427,6 +496,19 @@ fun AscentScreen(
             }
             Spacer(Modifier.height(20.dp))
         }
+    }
+}
+
+/** „Heute“, „Gestern“ oder Wochentag + Datum — für die Liste der Aufzeichnungen. */
+private fun dateLabel(at: Long): String {
+    val cal = java.util.Calendar.getInstance()
+    val today = cal.get(java.util.Calendar.DAY_OF_YEAR) to cal.get(java.util.Calendar.YEAR)
+    cal.timeInMillis = at
+    val that = cal.get(java.util.Calendar.DAY_OF_YEAR) to cal.get(java.util.Calendar.YEAR)
+    return when {
+        that == today -> "Heute"
+        today.second == that.second && today.first - that.first == 1 -> "Gestern"
+        else -> java.text.SimpleDateFormat("EE dd.MM.", java.util.Locale.GERMAN).format(java.util.Date(at))
     }
 }
 

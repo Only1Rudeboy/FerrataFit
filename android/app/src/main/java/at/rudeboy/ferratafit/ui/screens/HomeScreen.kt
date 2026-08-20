@@ -36,7 +36,8 @@ fun HomeScreen(
     onStartStage: (String) -> Unit,
     onSkipStage: (String) -> Unit,
     onOpenDay: (String) -> Unit,
-    onOpenBody: () -> Unit = {}
+    onOpenBody: () -> Unit = {},
+    onStartRecoveryBreak: () -> Unit = {}
 ) {
     val now = System.currentTimeMillis()
     val p = state.profile
@@ -51,12 +52,17 @@ fun HomeScreen(
     val deload = taper == null && Progression.isDeloadWeek(week)
     val readiness = Stats.ferrataReadiness(state.sessions, now)
     val streak = Stats.weeklyStreak(state.sessions, now)
+    val recovery = Recovery.state(state.ascents, now)
+    // Nach einer großen Tour wird die Krafteinheit aufgeschoben — der Plan passt sich
+    // der Tour an, nicht umgekehrt. Leichte Etappen (Dehnen, Rausgehen) bleiben, wie
+    // sie sind: Genau die sind jetzt richtig.
+    val deferStrength = recovery?.level == RecoveryLevel.ERHOLUNG && stage.kind == StageKind.STRENGTH
 
     // Nur Krafteinheiten haben Übungen und Steigerungen zu zeigen.
     val exercises = Journey.dayFor(stage)
         ?.let { PlanBuilder.exercisesFor(it, p, state.hiddenExercises) } ?: emptyList()
     val increases = exercises
-        .map { Progression.suggest(it, state.sessions, p, now) }
+        .map { Progression.suggest(it, state.sessions, p, now, Recovery.state(state.ascents, now)) }
         .filter { it.advice == Advice.INCREASE }
 
     LazyColumn(
@@ -198,6 +204,43 @@ fun HomeScreen(
                 }
 
                 Column(Modifier.padding(18.dp)) {
+                    if (deferStrength && recovery != null) {
+                        Pill("${TourLoad.label(recovery.score)} — ${recovery.sourceName}", Palette.Violet)
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Die Tour steckt dir noch in den Armen. Die App schiebt „${stage.title}“ " +
+                                "auf — noch etwa ${recovery.hoursLeft(now)} Stunden. Heute ist Lockern " +
+                                "das bessere Training.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Palette.TextMid
+                        )
+                        Spacer(Modifier.height(14.dp))
+                        Button(
+                            onClick = onStartRecoveryBreak,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Palette.Violet,
+                                contentColor = Palette.Ink
+                            )
+                        ) {
+                            Text("Erholung starten", fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(
+                            onClick = { onStartStage(stage.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                "Trotzdem trainieren — die Vorschläge bleiben gesenkt",
+                                color = Palette.TextLow,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    } else {
+                    if (recovery?.level == RecoveryLevel.ANGESCHLAGEN && stage.kind == StageKind.STRENGTH) {
+                        Pill("Noch leicht angeschlagen — Vorschläge um 10 % gesenkt", Palette.Violet)
+                        Spacer(Modifier.height(12.dp))
+                    }
                     if (stage.kind == StageKind.STRENGTH && deload) {
                         Pill("Entlastungswoche — bewusst leichter", Palette.Emerald)
                         Spacer(Modifier.height(12.dp))
@@ -293,6 +336,7 @@ fun HomeScreen(
                         TextButton(onClick = { onSkipStage(stage.id) }, modifier = Modifier.weight(1f)) {
                             Text("Überspringen", color = Palette.TextLow)
                         }
+                    }
                     }
                 }
             }

@@ -14,6 +14,8 @@ import at.rudeboy.ferratafit.MainActivity
 import at.rudeboy.ferratafit.R
 import at.rudeboy.ferratafit.data.AppState
 import at.rudeboy.ferratafit.data.Journey
+import at.rudeboy.ferratafit.data.Recovery
+import at.rudeboy.ferratafit.data.RecoveryLevel
 import at.rudeboy.ferratafit.data.StageKind
 import at.rudeboy.ferratafit.data.Store
 import java.util.Calendar
@@ -108,7 +110,15 @@ object Reminders {
      * Reines Lesen: Der Zustand wird hier nie verändert.
      */
     fun buildText(state: AppState): Pair<String, String> {
+        // Wirkt eine Tour noch voll nach, wäre die Erinnerung ans Krafttraining genau
+        // der falsche Anstupser. Dann erinnert die App ans Lockern.
+        val rec = Recovery.state(state.ascents, System.currentTimeMillis())
         val stage = Journey.current(state.progress)
+        if (rec?.level == RecoveryLevel.ERHOLUNG && stage.kind == StageKind.STRENGTH) {
+            return "🛌 Erholung" to
+                "${rec.sourceName} steckt dir noch in den Armen. Heute nur Lockern — " +
+                "die Krafteinheit wartet, bis du wieder frisch bist."
+        }
         val index = Journey.currentIndex(state.progress) + 1
         val body = when (stage.kind) {
             StageKind.STRENGTH -> "Etappe $index wartet: ${stage.title}. Rund ${

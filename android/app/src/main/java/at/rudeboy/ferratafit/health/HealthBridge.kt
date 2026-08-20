@@ -9,6 +9,7 @@ import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.BodyWaterMassRecord
 import androidx.health.connect.client.records.BoneMassRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.LeanBodyMassRecord
 import androidx.health.connect.client.records.Record
@@ -53,6 +54,8 @@ class HealthBridge(private val context: Context) {
             // Nur Lesen. Es gibt bewusst kein getWritePermission in dieser Menge.
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(StepsRecord::class),
+            // Der Puls einer aufgezeichneten Tour fließt in die Belastungszahl ein
+            HealthPermission.getReadPermission(HeartRateRecord::class),
             // Körperdaten von der Waage — kommen über Samsung Health aus FitDays herein
             HealthPermission.getReadPermission(WeightRecord::class),
             HealthPermission.getReadPermission(BodyFatRecord::class),
@@ -160,13 +163,17 @@ class HealthBridge(private val context: Context) {
                 ReadRecordsRequest(ExerciseSessionRecord::class, TimeRangeFilter.between(start, end))
             ).records
                 .filter { it.exerciseType in OUTDOOR_TYPES }
-                .map {
+                .map { rec ->
                     OutdoorSession(
-                        startedAt = it.startTime.toEpochMilli(),
-                        finishedAt = it.endTime.toEpochMilli(),
-                        title = it.title.orEmpty(),
-                        isClimbing = it.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_ROCK_CLIMBING
+                        startedAt = rec.startTime.toEpochMilli(),
+                        finishedAt = rec.endTime.toEpochMilli(),
+                        title = rec.title.orEmpty(),
+                        isClimbing = rec.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_ROCK_CLIMBING
                     )
+                }
+                .map {
+                    val hr = tourHeartRate(it.startedAt, it.finishedAt)
+                    it.copy(avgHr = hr?.first ?: 0, maxHr = hr?.second ?: 0)
                 }
                 // Zu kurz, um eine Tour zu sein — ein Spaziergang zum Bäcker soll nicht
                 // als Klettersteig vorgeschlagen werden.
@@ -174,6 +181,31 @@ class HealthBridge(private val context: Context) {
                 .sortedByDescending { it.startedAt }
         } catch (_: Exception) {
             emptyList()
+        }
+    }
+
+    /**
+     * Mittlerer und höchster Puls im Zeitraum einer Tour.
+     *
+     * Aus den Rohproben gemittelt statt über die Aggregat-Schnittstelle: Die liefert je
+     * nach Uhr-Hersteller keine Werte für fremde Aufzeichnungen, die Proben selbst sind
+     * aber da. Bei einer vierstündigen Tour sind das ein paar tausend Werte — das
+     * Mitteln ist billig, die Abfrage passiert nur beim Eintragen.
+     */
+    private suspend fun tourHeartRate(startMs: Long, endMs: Long): Pair<Int, Int>? {
+        val client = clientOrNull() ?: return null
+        return try {
+            val samples = client.readRecords(
+                ReadRecordsRequest(
+                    HeartRateRecord::class,
+                    TimeRangeFilter.between(Instant.ofEpochMilli(startMs), Instant.ofEpochMilli(endMs))
+                )
+            ).records.flatMap { it.samples }
+            if (samples.isEmpty()) return null
+            val bpm = samples.map { it.beatsPerMinute }
+            Pair(bpm.average().toInt(), bpm.max().toInt())
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -264,7 +296,10 @@ data class OutdoorSession(
     val startedAt: Long,
     val finishedAt: Long,
     val title: String = "",
-    val isClimbing: Boolean = false
+    val isClimbing: Boolean = false,
+    /** Mittlerer und höchster Puls, 0 wenn die Uhr keinen aufgezeichnet hat. */
+    val avgHr: Int = 0,
+    val maxHr: Int = 0
 ) {
     val durationMin: Int get() = ((finishedAt - startedAt) / 60_000L).toInt().coerceAtLeast(0)
 }
