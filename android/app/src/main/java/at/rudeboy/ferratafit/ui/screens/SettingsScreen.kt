@@ -14,11 +14,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,7 +48,6 @@ fun SettingsScreen(
     onSetReminder: (Boolean, Int?, Int?) -> Unit,
     onSetReminderSkip: (Boolean) -> Unit,
     onSyncBody: () -> Unit,
-    onSyncAll: () -> Unit,
     onRestartCycle: () -> Unit,
     onExport: () -> String,
     onImport: (String) -> Unit,
@@ -65,8 +66,8 @@ fun SettingsScreen(
         granted = result.containsAll(HealthBridge.PERMISSIONS)
         onSetHealthEnabled(granted)
         onNotify(
-            if (granted) "Samsung Health ist verbunden. Neue Einheiten werden automatisch übergeben."
-            else "Ohne Freigabe kann nichts übertragen werden."
+            if (granted) "Samsung Health ist verbunden. Die App liest von dort — geschrieben wird nichts."
+            else "Ohne Freigabe kann nichts gelesen werden."
         )
     }
 
@@ -137,36 +138,39 @@ fun SettingsScreen(
 
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "Samsung Health tauscht Training, Schritte und Puls über Health Connect aus. " +
-                        "Gibst du das hier frei, landet jede abgeschlossene Einheit als Krafttraining " +
-                        "in Samsung Health. Der Abgleich läuft nicht sofort, sondern in der Regel " +
-                        "innerhalb einer Stunde.",
+                    "Die App liest über Health Connect mit: Schritte, Waagendaten und draußen " +
+                        "aufgezeichnete Touren, aus denen sich eine Begehung eintragen lässt.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Palette.TextMid
                 )
+
+                Spacer(Modifier.height(10.dp))
+                Row {
+                    Icon(
+                        Icons.Filled.Lock, null,
+                        tint = Palette.Emerald, modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Die App schreibt nichts nach Health Connect. Deine Einheiten bleiben " +
+                            "auf diesem Gerät und landen nicht in Googles Gesundheitsakte.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Palette.Emerald
+                    )
+                }
 
                 Spacer(Modifier.height(14.dp))
 
                 when (availability) {
                     HealthBridge.Availability.READY -> {
                         if (granted) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = onSyncAll,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(Icons.Filled.Sync, null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(7.dp))
-                                    Text("Alles übertragen")
-                                }
-                                OutlinedButton(
-                                    onClick = { safeStart(context, health.settingsIntent(), onNotify) },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(Icons.Filled.OpenInNew, null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(7.dp))
-                                    Text("Freigaben")
-                                }
+                            OutlinedButton(
+                                onClick = { safeStart(context, health.settingsIntent(), onNotify) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Filled.OpenInNew, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(7.dp))
+                                Text("Freigaben verwalten")
                             }
                         } else {
                             Button(
@@ -333,10 +337,13 @@ fun SettingsScreen(
         item { SectionTitle("Profil") }
         item {
             FfCard {
-                var bw by remember(state.profile.bodyweightKg) {
+                // Der Schlüssel darf NICHT der Wert selbst sein: Das Feld schreibt ihn bei
+                // jedem Tastendruck fort, wodurch sich der Zustand neu aufbaut und den Text
+                // zurückformatiert. „77.5“ wurde so beim Tippen des Punkts wieder zu „77“.
+                var bw by rememberSaveable {
                     mutableStateOf(state.profile.bodyweightKg.toInt().toString())
                 }
-                var step by remember(state.profile.plateStepKg) {
+                var step by rememberSaveable {
                     mutableStateOf(
                         state.profile.plateStepKg.let {
                             if (it % 1.0 == 0.0) it.toInt().toString() else it.toString()
@@ -369,7 +376,7 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
-                var target by remember(state.profile.targetFerrataName) {
+                var target by rememberSaveable {
                     mutableStateOf(state.profile.targetFerrataName)
                 }
                 OutlinedTextField(

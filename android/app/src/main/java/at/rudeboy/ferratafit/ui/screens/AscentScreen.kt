@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +43,6 @@ import at.rudeboy.ferratafit.data.Ascent
 import at.rudeboy.ferratafit.data.AscentFlag
 import at.rudeboy.ferratafit.data.Feel
 import at.rudeboy.ferratafit.data.FerrataGrade
-import at.rudeboy.ferratafit.data.FerrataRoute
 import at.rudeboy.ferratafit.data.FerrataRoutes
 import at.rudeboy.ferratafit.ui.FfCard
 import at.rudeboy.ferratafit.ui.Palette
@@ -63,17 +63,26 @@ fun AscentScreen(
     onSave: (Ascent) -> Unit,
     onCancel: () -> Unit
 ) {
-    var route by remember { mutableStateOf<FerrataRoute?>(null) }
-    var freeName by remember { mutableStateOf("") }
-    var grade by remember { mutableStateOf(FerrataGrade.A) }
-    var meters by remember { mutableStateOf("") }
-    var minutes by remember { mutableStateOf("") }
-    var feel by remember { mutableStateOf<Feel?>(null) }
-    var flags by remember { mutableStateOf(setOf<AscentFlag>()) }
-    var turnedBack by remember { mutableStateOf(false) }
-    var partners by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var search by remember { mutableStateOf("") }
+    // Alles über rememberSaveable und als Zeichenkette gehalten: Nur so überlebt das
+    // Formular ein Drehen des Geräts und einen Wechsel in eine andere App. Enums und
+    // Datenklassen lassen sich nicht ohne Weiteres im Bündel ablegen, ihre Namen schon —
+    // deshalb stehen hier Kennungen statt Objekte.
+    var routeId by rememberSaveable { mutableStateOf<String?>(null) }
+    var freeName by rememberSaveable { mutableStateOf("") }
+    var gradeName by rememberSaveable { mutableStateOf(FerrataGrade.A.name) }
+    var meters by rememberSaveable { mutableStateOf("") }
+    var minutes by rememberSaveable { mutableStateOf("") }
+    var feelName by rememberSaveable { mutableStateOf<String?>(null) }
+    var flagNames by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var turnedBack by rememberSaveable { mutableStateOf(false) }
+    var partners by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
+    var search by rememberSaveable { mutableStateOf("") }
+
+    val route = routeId?.let { FerrataRoutes.byId(it) }
+    val grade = runCatching { FerrataGrade.valueOf(gradeName) }.getOrDefault(FerrataGrade.A)
+    val feel = feelName?.let { n -> Feel.entries.firstOrNull { it.name == n } }
+    val flags = flagNames.mapNotNull { n -> AscentFlag.entries.firstOrNull { it.name == n } }.toSet()
 
     val name = route?.name ?: freeName.trim()
     val canSave = name.isNotBlank() && feel != null
@@ -121,7 +130,7 @@ fun AscentScreen(
                             color = Palette.Sky,
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .clickable { route = null; search = "" }
+                                .clickable { routeId = null; search = "" }
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
@@ -145,8 +154,8 @@ fun AscentScreen(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable {
-                                    route = r
-                                    grade = r.gradeEnum
+                                    routeId = r.id
+                                    gradeName = r.gradeEnum.name
                                     if (r.climbMeters > 0) meters = r.climbMeters.toString()
                                     if (r.totalMin > 0) minutes = r.totalMin.toString()
                                 }
@@ -196,7 +205,7 @@ fun AscentScreen(
                                 .height(44.dp)
                                 .clip(RoundedCornerShape(13.dp))
                                 .background(if (grade == g) Palette.Sky else Palette.SurfaceHigh)
-                                .clickable { grade = g },
+                                .clickable { gradeName = g.name },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -285,7 +294,7 @@ fun AscentScreen(
                             .padding(vertical = 3.dp)
                             .clip(RoundedCornerShape(13.dp))
                             .background(if (feel == f) Palette.Sky.copy(alpha = 0.16f) else Palette.SurfaceHigh)
-                            .clickable { feel = f }
+                            .clickable { feelName = f.name }
                             .padding(horizontal = 13.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -333,10 +342,10 @@ fun AscentScreen(
                             .clip(RoundedCornerShape(11.dp))
                             .clickable {
                                 // „Nichts davon“ schließt die anderen aus, und umgekehrt
-                                flags = when {
-                                    f == AscentFlag.RUND -> if (on) emptySet() else setOf(f)
-                                    on -> flags - f
-                                    else -> flags - AscentFlag.RUND + f
+                                flagNames = when {
+                                    f == AscentFlag.RUND -> if (on) emptyList() else listOf(f.name)
+                                    on -> flagNames - f.name
+                                    else -> flagNames - AscentFlag.RUND.name + f.name
                                 }
                             }
                             .padding(horizontal = 10.dp, vertical = 9.dp),

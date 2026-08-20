@@ -68,6 +68,15 @@ object Catalog {
     )
 
     fun day(id: String): TrainingDay = days.first { it.id == id }
+
+    /**
+     * Wie [day], nur ohne Ausnahme.
+     *
+     * Seit angefangene Einheiten auf der Platte liegen, kommt die Kennung nicht mehr nur
+     * aus der laufenden Sitzung. Eine in einer neuen App-Fassung umbenannte Tageskennung
+     * würde die App sonst beim Wiederaufnehmen zum Absturz bringen.
+     */
+    fun dayOrNull(id: String): TrainingDay? = days.firstOrNull { it.id == id }
 }
 
 /**

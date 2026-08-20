@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,7 +54,7 @@ fun StageScreen(
     onCancel: () -> Unit
 ) {
     val stage = active.stage
-    var showCancel by remember { mutableStateOf(false) }
+    var showCancel by rememberSaveable { mutableStateOf(false) }
     var timerSeconds by remember { mutableIntStateOf(0) }
     var timerTotal by remember { mutableIntStateOf(0) }
     var timerRunning by remember { mutableStateOf(false) }

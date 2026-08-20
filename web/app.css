@@ -827,3 +827,29 @@ dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .opt.check.on .box { background: var(--emerald); }
 
 .btn.block { width: 100%; }
+
+/* ---------- Rückfrage zu Angefangenem ---------- */
+
+/* Eigene Hülle statt <dialog>: Die Rückfrage wird im Render-String erzeugt und müsste
+   sonst nachträglich per showModal() geöffnet werden. */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, .7);
+}
+.modal .sheet {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface-high);
+  border: 1px solid var(--outline);
+  border-radius: 22px;
+  padding: 22px;
+}
+.modal .sheet h3 { margin: 0 0 8px; font-size: 18px; }
+.modal .sheet p { margin: 0; font-size: 14px; line-height: 1.5; }
+.modal .btn-row .btn { flex: 1; }

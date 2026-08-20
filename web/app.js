@@ -13,7 +13,7 @@ import * as FE from './ferrata.js';
 import { FERRATAS, ferrataRegions } from './ferratas.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 
 const DEFAULT_STATE = {
   profile: {
@@ -85,6 +85,111 @@ function update(fn) {
   fn(state);
   save();
   render();
+}
+
+// ---------------------------------------------------------------------------
+// Angefangenes
+// ---------------------------------------------------------------------------
+
+/**
+ * Der laufende Zustand liegt in eigenen Variablen und wäre nach einem Neuladen weg.
+ *
+ * Auf dem Handy passiert das schnell: Wer während einer Einheit die Musik wechselt oder
+ * einen Anruf annimmt, findet den Tab beim Zurückkommen oft neu geladen vor — und ohne
+ * diesen Zwischenspeicher wären alle eingetippten Sätze verloren. Dieselbe Lösung wie in
+ * der Android-App, nur mit localStorage statt einer Datei.
+ *
+ * Gespeichert wird ausschließlich Eingetipptes plus Kennungen; der Vorschlag wird beim
+ * Wiederaufnehmen aus dem ursprünglichen Startzeitpunkt neu gerechnet.
+ */
+const DRAFT_KEY = STORAGE_KEY + '.draft';
+const RESUME_WINDOW_H = 6;
+const EXPIRY_H = 72;
+const MAX_SESSION_MIN = 240;
+
+function saveDraft() {
+  try {
+    if (!active && !activeStage) { localStorage.removeItem(DRAFT_KEY); return; }
+    const now = Date.now();
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      lastTouchedAt: now,
+      workout: active ? {
+        dayId: active.dayId,
+        startedAt: active.startedAt,
+        stageId: active.stageId || null,
+        current: active.current,
+        entries: active.entries.map((e) => ({ exerciseId: e.sug.exercise.id, sets: e.sets })),
+        restEndsAt, restTotal, restPausedWith,
+      } : null,
+      stage: activeStage ? {
+        stageId: activeStage.stage.id,
+        startedAt: activeStage.startedAt || now,
+        minutes: activeStage.minutes,
+        meters: activeStage.meters,
+        doneDrills: (activeStage.items || []).filter((i) => i.done).map((i) => i.id),
+      } : null,
+    }));
+  } catch {
+    // Voller Speicher darf das Training nicht anhalten
+  }
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+const draftAgeH = (d) => (Date.now() - (d.lastTouchedAt || 0)) / 3600000;
+
+/** Baut die angefangene Einheit wieder auf. Gibt zurück, ob etwas wiederhergestellt wurde. */
+function restoreDraft(d) {
+  let ok = false;
+  if (d.workout && D.dayById(d.workout.dayId)) {
+    const w = d.workout;
+    let verloren = 0;
+    const entries = w.entries.map((de) => {
+      const ex = D.byId(de.exerciseId);
+      if (!ex) { verloren++; return null; }
+      // Mit dem ursprünglichen Startzeitpunkt rechnen, nicht mit jetzt — sonst stünde
+      // nach einer Unterbrechung über Mitternacht eine andere Empfehlung da.
+      return { sug: D.suggest(ex, state.sessions, state.profile, w.startedAt), sets: de.sets };
+    }).filter(Boolean);
+
+    if (entries.length) {
+      active = {
+        dayId: w.dayId, startedAt: w.startedAt, entries,
+        current: Math.min(w.current || 0, entries.length - 1),
+        stageId: w.stageId || null,
+      };
+      restEndsAt = w.restEndsAt || 0;
+      restTotal = w.restTotal || 0;
+      restPausedWith = w.restPausedWith ?? null;
+      if (remainingRest() > 0) startRest(remainingRest());
+      ok = true;
+      if (verloren) {
+        toast(`${verloren} ${verloren === 1 ? 'Übung gibt' : 'Übungen gibt'} es nicht mehr — der Rest ist wieder da.`);
+      }
+    }
+  }
+  if (d.stage) {
+    const stage = J.stageById(d.stage.stageId);
+    if (stage) {
+      activeStage = {
+        stage,
+        startedAt: d.stage.startedAt,
+        minutes: d.stage.minutes ?? 30,
+        meters: d.stage.meters ?? 0,
+        items: stage.mobilityIds.map((id) => ({ id, done: (d.stage.doneDrills || []).includes(id) })),
+      };
+      ok = true;
+    }
+  }
+  if (!ok) localStorage.removeItem(DRAFT_KEY);
+  return ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -1347,6 +1452,9 @@ function viewSettings() {
 // ---------------------------------------------------------------------------
 
 function startWorkout(dayId) {
+  // Über eine offene Rückfrage muss erst entschieden werden — sonst löschte ein neuer
+  // Start die gestrigen Sätze wortlos weg.
+  if (resumeAsk) { toast('Es ist noch eine Einheit offen. Entscheide zuerst, ob du sie fortsetzt.'); return; }
   const now = Date.now();
   const day = D.dayById(dayId);
   const entries = D.exercisesFor(day, state.profile, state.hiddenExercises).map((ex) => {
@@ -1361,7 +1469,13 @@ function startWorkout(dayId) {
       })),
     };
   });
-  active = { dayId, startedAt: now, entries, current: 0 };
+  active = {
+    dayId, startedAt: now, entries, current: 0,
+    // Die offene Etappe festhalten: Beim Abschließen wird gegen sie geprüft, nicht
+    // gegen die dann offene — dazwischen kann eine Begehung den Zeiger bewegt haben.
+    stageId: J.currentStage(state.progress).dayId === dayId ? J.currentStage(state.progress).id : null,
+  };
+  saveDraft();
   render();
 }
 
@@ -1458,14 +1572,17 @@ function startStage(stageId) {
     startWorkout(stage.dayId);
     return;
   }
+  const now = Date.now();
   if (stage.kind === J.STAGE_KIND.ENDURANCE) {
-    activeStage = { stage, minutes: 30, meters: 0 };
+    activeStage = { stage, startedAt: now, minutes: 30, meters: 0 };
   } else {
     activeStage = {
       stage,
+      startedAt: now,
       items: stage.mobilityIds.map((id) => ({ id, done: false })),
     };
   }
+  saveDraft();
   render();
 }
 
@@ -1570,6 +1687,7 @@ function finishStage() {
     detail = `${activeStage.minutes} min${extra ? ` · ${extra} Hm` : ''}`;
     const total = stage.meters + extra;
     activeStage = null;
+    saveDraft();
     stopRest();
     completeStage({ ...stage, meters: total }, { detail });
     return;
@@ -1578,12 +1696,14 @@ function finishStage() {
   const done = activeStage.items.filter((i) => i.done).length;
   if (done === 0) {
     activeStage = null;
+    saveDraft();
     render();
     toast('Etappe verworfen — es war keine Übung abgehakt.');
     return;
   }
   detail = `${done} von ${activeStage.items.length} Übungen`;
   activeStage = null;
+  saveDraft();
   stopRest();
   completeStage(stage, { detail });
 }
@@ -1613,6 +1733,7 @@ function finishWorkout(note = '') {
 
   if (!sets.length) {
     active = null;
+    saveDraft();
     render();
     toast('Einheit verworfen — es war kein Satz abgehakt.');
     return;
@@ -1628,6 +1749,8 @@ function finishWorkout(note = '') {
   };
 
   active = null;
+
+  saveDraft();
   stopRest();
   update((s) => {
     s.sessions.push(session);
@@ -1648,27 +1771,58 @@ function finishWorkout(note = '') {
 // Pausenuhr
 // ---------------------------------------------------------------------------
 
-let restLeft = 0, restTotal = 0, restRunning = false;
+// Die Pause wird als Endzeitpunkt gehalten, nicht als herunterlaufender Zähler.
+// Browser drosseln setInterval in Hintergrund-Tabs auf bis zu einmal pro Minute — ein
+// Zähler bliebe also stehen, während die echte Pause weiterläuft. Aus dem Endzeitpunkt
+// ergibt sich die Restzeit dagegen immer richtig, auch nach einem Neuladen der Seite.
+let restEndsAt = 0, restTotal = 0, restPausedWith = null;
+
+function remainingRest() {
+  if (restPausedWith !== null) return restPausedWith;
+  if (!restEndsAt) return 0;
+  return Math.max(0, Math.round((restEndsAt - Date.now()) / 1000));
+}
 
 function startRest(seconds) {
-  restLeft = seconds;
   restTotal = seconds;
-  restRunning = true;
+  restPausedWith = null;
+  restEndsAt = Date.now() + seconds * 1000;
+  saveDraft();
   drawRest();
   clearInterval(restTimer);
   restTimer = setInterval(() => {
-    if (!restRunning) return;
-    restLeft--;
-    if (restLeft <= 0) { stopRest(); return; }
+    if (remainingRest() <= 0 && restPausedWith === null) { stopRest(); return; }
     drawRest();
-  }, 1000);
+  }, 500);
+}
+
+function addRest(seconds) {
+  if (restPausedWith !== null) restPausedWith += seconds;
+  else if (restEndsAt) restEndsAt += seconds * 1000;
+  restTotal = Math.max(restTotal, remainingRest());
+  saveDraft();
+  drawRest();
+}
+
+function toggleRest() {
+  if (restPausedWith !== null) {
+    restEndsAt = Date.now() + restPausedWith * 1000;
+    restPausedWith = null;
+  } else {
+    restPausedWith = remainingRest();
+    restEndsAt = 0;
+  }
+  saveDraft();
+  drawRest();
 }
 
 function stopRest() {
   clearInterval(restTimer);
   restTimer = null;
-  restRunning = false;
-  restLeft = 0;
+  restEndsAt = 0;
+  restTotal = 0;
+  restPausedWith = null;
+  saveDraft();
   $('#rest')?.remove();
 }
 
@@ -1679,17 +1833,20 @@ function drawRest() {
     el.id = 'rest';
     document.body.appendChild(el);
   }
-  const mm = Math.floor(restLeft / 60);
-  const ss = String(restLeft % 60).padStart(2, '0');
+  const left = remainingRest();
+  const mm = Math.floor(left / 60);
+  const ss = String(left % 60).padStart(2, '0');
+  // Die Knöpfe werden hier jede halbe Sekunde neu erzeugt. Ihre Handler hängen deshalb
+  // nicht an ihnen selbst, sondern einmalig am Dokument — siehe bindGlobalOnce().
   el.innerHTML = `
     <div class="row">
       <div class="grow"><div class="l">Pause</div><div class="t">${mm}:${ss}</div></div>
       <button data-rest="add">+30 s</button>
-      <button data-rest="toggle">${restRunning ? '⏸' : '▶'}</button>
+      <button data-rest="toggle">${restPausedWith === null ? '⏸' : '▶'}</button>
       <button class="go" data-rest="skip">Fertig</button>
     </div>
     <div class="bar" style="height:5px;margin-top:8px">
-      <i style="width:${restTotal ? (restLeft / restTotal) * 100 : 0}%"></i></div>`;
+      <i style="width:${restTotal ? (left / restTotal) * 100 : 0}%"></i></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1710,12 +1867,77 @@ function render() {
     <div id="app">${view()}</div>
     <nav>${TABS.map((t) => `<button data-tab="${t.id}" class="${tab === t.id ? 'on' : ''}">
       <span class="ic">${t.icon}</span><span>${t.label}</span></button>`).join('')}</nav>
-    ${active ? viewWorkout() : activeStage ? viewStage() : ascentForm ? viewAscentForm() : ''}`;
-  if (restLeft > 0) drawRest();
+    ${active ? viewWorkout() : activeStage ? viewStage() : ascentForm ? viewAscentForm() : ''}
+    ${resumeAsk ? viewResumeAsk() : ''}`;
+  if (remainingRest() > 0) drawRest();
   bindEvents();
 }
 
+/**
+ * Handler, die nur einmal gesetzt werden dürfen.
+ *
+ * Die Knöpfe der Pausenuhr entstehen in drawRest() jede halbe Sekunde neu. Wären ihre
+ * Handler wie alle anderen in bindEvents() gesetzt, wären sie nach dem ersten Tick tot —
+ * „+30 s“, Pause und „Fertig“ hätten dann sichtbar nichts mehr getan.
+ */
+let globalsBound = false;
+function bindGlobalOnce() {
+  if (globalsBound) return;
+  globalsBound = true;
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rest]');
+    if (!b) return;
+    const a = b.dataset.rest;
+    if (a === 'add') addRest(30);
+    else if (a === 'toggle') toggleRest();
+    else if (a === 'skip') stopRest();
+  });
+
+  // Beim Verlassen der Seite sichern: Mobile Browser verwerfen Tabs im Hintergrund,
+  // und pagehide ist das letzte Ereignis, das dabei zuverlässig noch ankommt.
+  window.addEventListener('pagehide', saveDraft);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveDraft();
+  });
+}
+
+/**
+ * Rückfrage zu einer älteren angefangenen Einheit.
+ *
+ * Sie springt nicht ungefragt auf: Wer nach zwei Tagen die App öffnet und unvermittelt in
+ * einem halben Training landet, weiß nicht, was er da vor sich hat — und hakt im Zweifel
+ * Sätze ab, die er nie gemacht hat.
+ */
+function viewResumeAsk() {
+  const h = Math.floor(draftAgeH(resumeAsk));
+  const alter = h < 24 ? `vor ${h} Stunden` : h < 48 ? 'gestern' : `vor ${Math.floor(h / 24)} Tagen`;
+  return `
+  <div class="modal">
+    <div class="sheet">
+      <h3>Angefangene Einheit</h3>
+      <p class="muted">Du hast ${alter} etwas begonnen und nicht abgeschlossen.
+        Weitermachen oder verwerfen?</p>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn ghost" data-resume="no">Verwerfen</button>
+        <button class="btn primary" data-resume="yes">Weitermachen</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function bindEvents() {
+  bindGlobalOnce();
+
+  document.querySelectorAll('[data-resume]').forEach((b) => {
+    b.onclick = () => {
+      const d = resumeAsk;
+      resumeAsk = null;
+      if (b.dataset.resume === 'yes') restoreDraft(d);
+      else localStorage.removeItem(DRAFT_KEY);
+      render();
+    };
+  });
   document.querySelectorAll('[data-tab]').forEach((b) => {
     b.onclick = () => { tab = b.dataset.tab; planOpen = null; render(); };
   });
@@ -1787,14 +2009,6 @@ function bindEvents() {
   bindWorkout();
   bindStage();
   bindFerrata();
-  document.querySelectorAll('[data-rest]').forEach((b) => {
-    b.onclick = () => {
-      const a = b.dataset.rest;
-      if (a === 'add') { restLeft += 30; restTotal = Math.max(restTotal, restLeft); drawRest(); }
-      else if (a === 'toggle') { restRunning = !restRunning; drawRest(); }
-      else stopRest();
-    };
-  });
 }
 
 /** Ereignisse im Fels-Bereich und im Eintragsformular. */
@@ -2062,6 +2276,7 @@ function bindStage() {
     b.onclick = () => {
       const i = +b.dataset.mobDone;
       activeStage.items[i].done = !activeStage.items[i].done;
+      saveDraft();
       render();
     };
   });
@@ -2083,6 +2298,7 @@ function bindStage() {
       const d = +dir;
       if (field === 'min') activeStage.minutes = Math.max(0, activeStage.minutes + d * 5);
       else activeStage.meters = Math.max(0, activeStage.meters + d * 50);
+      saveDraft();
       render();
     };
   });
@@ -2091,6 +2307,7 @@ function bindStage() {
   if (cancel) cancel.onclick = () => {
     if (confirm('Etappe verlassen? Der Fortschritt darin geht verloren.')) {
       activeStage = null;
+      saveDraft();
       stopRest();
       render();
     }
@@ -2105,6 +2322,7 @@ function bindStage() {
   if (skip) skip.onclick = () => {
     if (confirm(`„${stage.title}" überspringen?\n\nDie nächste Etappe wird frei, du bekommst aber keine Höhenmeter dafür.`)) {
       activeStage = null;
+      saveDraft();
       stopRest();
       completeStage(stage, { skipped: true });
     }
@@ -2115,7 +2333,7 @@ function bindWorkout() {
   if (!active) return;
 
   document.querySelectorAll('[data-pick]').forEach((b) => {
-    b.onclick = () => { active.current = +b.dataset.pick; render(); };
+    b.onclick = () => { active.current = +b.dataset.pick; saveDraft(); render(); };
   });
 
   document.querySelectorAll('[data-step]').forEach((b) => {
@@ -2128,6 +2346,7 @@ function bindWorkout() {
       if (field === 'w') set.weightKg = Math.max(0, set.weightKg + d * ex.increment);
       else if (field === 'r') set.reps = Math.max(0, set.reps + d);
       else set.seconds = Math.max(0, set.seconds + d * 5);
+      saveDraft();
       render();
     };
   });
@@ -2138,6 +2357,7 @@ function bindWorkout() {
       const entry = active.entries[active.current];
       const wasDone = entry.sets[i].done;
       entry.sets[i].done = !wasDone;
+      saveDraft();
       render();
       if (!wasDone) startRest(entry.sug.exercise.restSec);
     };
@@ -2151,6 +2371,7 @@ function bindWorkout() {
       entry.sets.forEach((s, j) => {
         if (j > i && !s.done) { s.weightKg = src.weightKg; s.reps = src.reps; s.seconds = src.seconds; }
       });
+      saveDraft();
       render();
       toast('Auf die restlichen Sätze übernommen.');
     };
@@ -2160,6 +2381,7 @@ function bindWorkout() {
   if (cancel) cancel.onclick = () => {
     if (confirm('Training verwerfen? Die bisher abgehakten Sätze gehen dabei verloren.')) {
       active = null;
+      saveDraft();
       stopRest();
       render();
     }
@@ -2181,9 +2403,21 @@ function bindWorkout() {
 // Start
 // ---------------------------------------------------------------------------
 
+let resumeAsk = null;   // angefangene Einheit, über die noch entschieden werden muss
+
 function boot() {
-  if (!state.profile.onboarded) renderOnboarding();
-  else render();
+  if (!state.profile.onboarded) { renderOnboarding(); return; }
+
+  const d = loadDraft();
+  if (d && !d.workout && !d.stage) localStorage.removeItem(DRAFT_KEY);
+  else if (d) {
+    const alter = draftAgeH(d);
+    // Erkennbar vergessen — wortlos wegräumen, nicht danach fragen
+    if (alter >= EXPIRY_H) localStorage.removeItem(DRAFT_KEY);
+    else if (alter < RESUME_WINDOW_H) restoreDraft(d);
+    else resumeAsk = d;
+  }
+  render();
 }
 
 boot();
@@ -2197,4 +2431,10 @@ if ('serviceWorker' in navigator) {
 }
 
 // Nur für den Rauchtest: Die Ansichten sollen sich ohne Browser aufrufen lassen.
-export const __test = { viewFerrata, viewAscentForm: (f) => { const o = ascentForm; ascentForm = f; const h = viewAscentForm(); ascentForm = o; return h; } };
+export const __test = {
+  viewFerrata,
+  viewAscentForm: (f) => { const o = ascentForm; ascentForm = f; const h = viewAscentForm(); ascentForm = o; return h; },
+  startWorkout, finishWorkout, saveDraft, restoreDraft, loadDraft,
+  active: () => active,
+  reset: () => { active = null; activeStage = null; resumeAsk = null; },
+};

@@ -1,6 +1,7 @@
 package at.rudeboy.ferratafit.data
 
 import kotlinx.serialization.Serializable
+import java.util.Calendar
 import kotlin.math.max
 import kotlin.math.min
 
@@ -327,6 +328,29 @@ object Ferrata {
         Fit.KNAPP -> "Machbar, aber deutlich mehr als bisher — Zeit und Puffer einplanen"
         Fit.ZIEL -> "Als Ziel vorgemerkt"
         Fit.ZU_FRUEH -> "Über deinen bisherigen Begehungen"
+    }
+
+    /**
+     * Deckt eine Begehung die offene Etappe ab?
+     *
+     * Der Nutzer will, dass ein Klettersteig aufs Training zählt — er hat an dem Tag
+     * mehr geleistet als jede Einheit am Gerät. Gleichzeitig darf das den Wochenrhythmus
+     * nicht durcheinanderbringen: Fünf Begehungen dürfen nicht fünf Etappen wegschieben.
+     *
+     * Die Regel, die beides zusammenbringt: Eine Begehung deckt genau dann die offene
+     * Etappe ab, wenn an ihrem Tag noch keine Etappe abgehakt wurde. Damit zählt sie
+     * einmal pro Tag — nicht öfter, und nicht zusätzlich zu einer Einheit am Gerät.
+     */
+    fun coversStage(progress: List<StageLog>, date: Long): Boolean =
+        progress.none { it.stageId != EXTRA_STAGE_ID && sameDay(it.at, date) }
+
+    /** Gleicher Kalendertag in der Zeitzone des Geräts. */
+    fun sameDay(a: Long, b: Long): Boolean {
+        if (a <= 0L || b <= 0L) return false
+        val ca = Calendar.getInstance().apply { timeInMillis = a }
+        val cb = Calendar.getInstance().apply { timeInMillis = b }
+        return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
+            ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR)
     }
 
     /**

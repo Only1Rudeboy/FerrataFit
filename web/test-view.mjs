@@ -39,20 +39,23 @@ const store = {
 globalThis.localStorage = {
   getItem: (k) => store[k] ?? null,
   setItem: (k, v) => { store[k] = v; },
+  removeItem: (k) => { delete store[k]; },
 };
 const el = () => ({
   onclick: null, oninput: null, onchange: null, value: '', dataset: {},
-  focus() {}, setSelectionRange() {}, remove() {}, closest: () => null,
-  querySelectorAll: () => [], querySelector: () => null, appendChild() {},
+  focus() {}, setSelectionRange() {}, remove() {}, closest: () => null, showModal() {}, close() {},
+  querySelectorAll: () => [], querySelector: () => el(), appendChild() {},
   classList: { add() {}, remove() {} }, style: {},
 });
 globalThis.document = {
-  body: { innerHTML: '' },
+  body: { innerHTML: '', appendChild() {}, removeChild() {} },
   querySelectorAll: () => [], querySelector: () => el(),
   getElementById: () => null, createElement: el,
   addEventListener() {}, documentElement: el(),
 };
 globalThis.window = { addEventListener() {}, matchMedia: () => ({ matches: false }) };
+// localStorage-Attrappe teilt sich das Ablageobjekt mit den Prüfungen unten
+globalThis.store = store;
 Object.defineProperty(globalThis, 'navigator', { value: { serviceWorker: { register: () => Promise.resolve() } }, configurable: true });
 globalThis.confirm = () => true;
 
@@ -93,5 +96,63 @@ ok('Speichern ist ohne Angaben gesperrt', /disabled/.test(form));
 ok('alle sechs Stufen zur Auswahl', (form.match(/data-grade=/g) || []).length === 6);
 ok('kein rohes undefined im Formular', !/undefined/.test(form),
    (form.match(/.{40}undefined.{40}/) || [''])[0]);
+// ------------------------------------------------------------------
+// Angefangenes überlebt ein Neuladen
+// ------------------------------------------------------------------
+// Der Anlass: Wer während einer Einheit die Musik wechselt, findet den Tab beim
+// Zurückkommen oft neu geladen vor. Ohne Zwischenspeicher wären alle Sätze weg.
+
+const DRAFT_KEY = 'ferratafit.v1.draft';
+const t = app.__test;
+
+t.startWorkout('A');
+ok('Einheit gestartet', t.active() !== null);
+ok('Entwurf liegt sofort im Speicher', !!store[DRAFT_KEY]);
+
+// Zwei Sätze eintragen und einen abhaken
+const w = t.active();
+w.entries[0].sets[0].reps = 9;
+w.entries[0].sets[0].done = true;
+w.entries[1].sets[0].weightKg = 47.5;
+t.saveDraft();
+
+const d = JSON.parse(store[DRAFT_KEY]);
+ok('Wiederholungen sind gesichert', d.workout.entries[0].sets[0].reps === 9);
+ok('Der Haken ist gesichert', d.workout.entries[0].sets[0].done === true);
+ok('Das Gewicht ist gesichert', d.workout.entries[1].sets[0].weightKg === 47.5);
+ok('Nur Kennungen, keine Übungstexte', !JSON.stringify(d).includes('Wiederholung'),
+   'der Entwurf schleppt Katalogtext mit');
+ok('Entwurf bleibt klein', store[DRAFT_KEY].length < 4000, `${store[DRAFT_KEY].length} Zeichen`);
+
+// Neuladen simulieren: Zustand wegwerfen, aus dem Speicher wiederherstellen
+t.reset();
+ok('nach dem Neuladen erst einmal leer', t.active() === null);
+t.restoreDraft(JSON.parse(store[DRAFT_KEY]));
+const r = t.active();
+ok('Einheit ist wieder da', r !== null);
+ok('Wiederholungen sind wieder da', r && r.entries[0].sets[0].reps === 9);
+ok('Der Haken ist wieder da', r && r.entries[0].sets[0].done === true);
+ok('Das Gewicht ist wieder da', r && r.entries[1].sets[0].weightKg === 47.5);
+ok('Der Startzeitpunkt bleibt', r && r.startedAt === w.startedAt);
+
+// Abschließen räumt den Entwurf weg — sonst spränge er beim nächsten Start wieder auf
+t.finishWorkout();
+ok('nach dem Abschließen ist der Entwurf weg', !store[DRAFT_KEY]);
+
+// Eine unbekannte Übung darf nicht die ganze Einheit kosten
+t.reset();
+const kaputt = { lastTouchedAt: Date.now(), workout: { dayId: 'A', startedAt: Date.now(),
+  current: 0, entries: [{ exerciseId: 'gibtesnicht', sets: [{ reps: 5, done: true }] },
+                        { exerciseId: 'pullup', sets: [{ reps: 7, done: true }] }] } };
+t.restoreDraft(kaputt);
+ok('unbekannte Übung wirft nicht die Einheit weg', t.active() !== null);
+ok('die übrigen Sätze sind da', t.active() && t.active().entries[0].sets[0].reps === 7);
+
+// Ein unbekannter Trainingstag darf nicht zum Absturz führen
+t.reset();
+t.restoreDraft({ lastTouchedAt: Date.now(), workout: { dayId: 'GIBTESNICHT', startedAt: 1,
+  current: 0, entries: [{ exerciseId: 'pullup', sets: [{ reps: 5 }] }] } });
+ok('unbekannter Trainingstag führt nicht in ein kaputtes Training', t.active() === null);
+
 console.log(bad === 0 ? '\nRauchtest bestanden.\n' : `\n${bad} Problem(e).\n`);
 process.exit(bad ? 1 : 0);

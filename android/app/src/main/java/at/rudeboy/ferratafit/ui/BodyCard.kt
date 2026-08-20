@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,7 +55,7 @@ fun BodyCard(
     val trend = Body.weightTrend(state.body, now)
     val bestPullup = state.sessions.flatMap { it.sets }
         .filter { it.exerciseId == "pullup" }.maxOfOrNull { it.reps } ?: 0
-    var showManual by remember { mutableStateOf(false) }
+    var showManual by rememberSaveable { mutableStateOf(false) }
 
     // Datei aus FitDays oder einer anderen Waagen-App einlesen
     val pickFile = rememberLauncherForActivityResult(
@@ -321,8 +322,8 @@ private fun ManualRow(onManual: () -> Unit, onFile: () -> Unit) {
 /** Messung von Hand eintragen. */
 @Composable
 private fun ManualDialog(onDismiss: () -> Unit, onSave: (Double, Double?) -> Unit) {
-    var weight by remember { mutableStateOf("") }
-    var fat by remember { mutableStateOf("") }
+    var weight by rememberSaveable { mutableStateOf("") }
+    var fat by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,

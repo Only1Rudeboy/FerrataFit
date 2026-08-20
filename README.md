@@ -29,6 +29,10 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 
 ## ✨ Funktionen
 
+- **Angefangenes bleibt erhalten** — wer während einer Einheit die App wechselt, findet
+  jede eingetippte Zahl und die laufende Pausenuhr wieder vor
+- **Ein Klettersteig zählt als Training** — die Begehung hakt die offene Etappe ab, mit
+  den echten Klettermetern
 - **44 Vorarlberger Klettersteige** mit Missionsübersicht: Die App sortiert sie danach,
   was zu deinem Stand passt — und schlägt nie mehr als eine Stufe über dem vor, was du
   zweimal mit Reserve gegangen bist
@@ -63,7 +67,7 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
 - **Countdown zur geplanten Tour**
 - **Verlaufskurven je Übung**, Bestleistungen, Einheiten pro Woche
 - **Entlastungswochen** automatisch im Fünf-Wochen-Rhythmus
-- **Samsung Health** über Health Connect (Android-App)
+- **Samsung Health** über Health Connect — **nur lesend**, die App überträgt nichts dorthin
 - **Export/Import** der kompletten Daten, auch zwischen App und Web-Variante
 
 ## 🎯 Der Steig — sieben Etappen im Zyklus
@@ -197,6 +201,44 @@ dabei, statt Geratenes wie geprüfte Angaben aussehen zu lassen. Bei Zwischenstu
 > Die Angaben stammen aus öffentlichen Quellen und können veraltet sein.
 > **Entschieden wird am Einstieg, nicht am Handy.**
 
+## 🧗 Ein Klettersteig zählt als Training
+
+Wer am Fels war, hat an dem Tag mehr geleistet als jede Einheit am Gerät. Eine eingetragene
+Begehung hakt deshalb die offene Etappe ab — mit den **echten** Klettermetern, nicht mit dem
+pauschalen Wert der Etappe.
+
+Genau einmal pro Tag, und nur wenn an dem Tag noch nichts abgehakt war:
+
+| Situation | Was passiert |
+|---|---|
+| Begehung, sonst nichts an dem Tag | Etappe abgehakt, Höhenmeter gutgeschrieben |
+| Zweite Begehung am selben Tag | Höhenmeter gutgeschrieben, Etappe bleibt stehen |
+| Schon am Gerät trainiert | Höhenmeter gutgeschrieben, Etappe bleibt stehen |
+
+Sonst schöbe jede weitere Tour den Wochenrhythmus um eine Etappe weiter — nach drei Steigen
+stünde plötzlich ein Ruhetag an, obwohl seit einer Woche nicht trainiert wurde.
+
+## 💾 Angefangenes geht nicht verloren
+
+Android beendet Apps im Hintergrund, sobald es Speicher braucht. Wer während einer Einheit
+kurz die Musik wechselt oder einen Anruf annimmt, kam früher in eine leere App zurück und
+musste alle Sätze aller Übungen neu eintippen.
+
+Seit 1.8 liegt der angefangene Zustand auf der Platte — jeder Satz, jeder Haken, die
+Pausenuhr. Beim Zurückkommen steht alles wieder da.
+
+- Die **Pausenuhr** wird als Endzeitpunkt gespeichert, nicht als Zähler. Sie läuft deshalb
+  auch dann korrekt weiter, wenn die App zwischendurch gar nicht lief
+- Der **Vorschlag** wird mit dem ursprünglichen Startzeitpunkt neu gerechnet. Nach einer
+  Unterbrechung über Mitternacht steht dieselbe Empfehlung da wie vorher
+- Bis **sechs Stunden** wird wortlos weitergemacht. Was älter ist, wird nicht ungefragt
+  aufgeschlagen — wer nach zwei Tagen unvermittelt in einem halben Training landet, hakt
+  im Zweifel Sätze ab, die er nie gemacht hat
+- Eine über Nacht vergessene Einheit bekommt die Dauer **gedeckelt**, sonst stünden vierzehn
+  Stunden Training im Verlauf
+
+Dasselbe gilt für die Web-Fassung, dort über den Zwischenspeicher des Browsers.
+
 ## 🔄 Aktualisierung
 
 Die App liegt nicht im Play Store, also aktualisiert sie sich selbst: Unter **Mehr →
@@ -277,16 +319,27 @@ von Hand ein, die Auswertung darunter ist dieselbe.
 ## ⌚ Samsung Health
 
 Samsung bietet ein eigenes SDK an, das aber eine Partnerfreigabe voraussetzt und für
-eine private App ausscheidet. Der offene Weg führt über **Health Connect**: Samsung
-Health gleicht Training, Schritte und Puls damit in beide Richtungen ab.
+eine private App ausscheidet. Der offene Weg führt über **Health Connect**.
+
+> **Die App liest nur.** Sie schreibt nichts nach Health Connect und fordert seit
+> Fassung 1.8 auch keine Schreibrechte mehr an. Deine Einheiten bleiben auf dem Gerät
+> und landen nicht in Googles Gesundheitsakte.
+
+Gelesen werden Schritte, die Waagendaten aus FitDays und draußen aufgezeichnete Touren.
+Aus einer Tour lässt sich eine Begehung eintragen — die App schlägt sie vor und trägt
+sie nie von allein ein: Schwierigkeit und Gefühl weiß nur, wer dort war.
 
 1. In FerrataFit auf **Mehr → Mit Samsung Health verbinden**
 2. Health Connect fragt nach den Freigaben — bestätigen
 3. In der Samsung-Health-App prüfen: *Einstellungen → Health Connect*
 
-Danach landet jede abgeschlossene Einheit als Krafttraining in Samsung Health. Der
-Abgleich läuft nicht sekundengenau, sondern meist innerhalb einer Stunde. Ab Android 14
-ist Health Connect fest im System eingebaut, auf älteren Geräten wird es nachinstalliert.
+Ab Android 14 ist Health Connect fest im System eingebaut, auf älteren Geräten wird es
+nachinstalliert.
+
+**Wer vor 1.8 verbunden war:** Die frühere Fassung hatte die Freigabe *Training
+schreiben* angefordert. Sie wird nicht mehr genutzt und lässt sich in Health Connect
+unter *App-Berechtigungen → FerrataFit* entziehen. Bereits übertragene Einheiten stehen
+weiterhin in Samsung Health und müssen dort gelöscht werden, wenn sie weg sollen.
 
 ## 📖 Quellen
 
@@ -343,12 +396,13 @@ FerrataFit/
 │   │   ├── Catalog.kt                Split und Zusammenstellung
 │   │   ├── Progression.kt            Gewichtssteigerung
 │   │   ├── Journey.kt                Etappen, Dehnkatalog, Höhenmeter, Abzeichen
+│   │   ├── Draft.kt                  Angefangene Einheit — überlebt den App-Wechsel
 │   │   ├── Ferrata.kt                Rang, Steigpass, Einordnung der Routen
 │   │   └── FerrataRoutes.kt          Die 44 Klettersteige
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
 │   ├── app/src/main/java/…/update/   Selbstaktualisierung über GitHub
-│   ├── app/src/test/                 152 Tests
+│   ├── app/src/test/                 168 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
 │   ├── exercises.js                  Übungskatalog mit Ausführungsanleitungen
@@ -356,7 +410,7 @@ FerrataFit/
 │   ├── journey.js                    Etappen, Dehnkatalog, Höhenmeter, Abzeichen
 │   ├── ferrata.js                    Rang, Steigpass, Einordnung der Routen
 │   ├── ferratas.js                   Die 44 Klettersteige
-│   └── test-*.mjs                    125 Prüfungen, inkl. Gleichlauf mit Android
+│   └── test-*.mjs                    151 Prüfungen, inkl. Gleichlauf mit Android
 └── docs/             Trainingswissen und Screenshots
 ```
 

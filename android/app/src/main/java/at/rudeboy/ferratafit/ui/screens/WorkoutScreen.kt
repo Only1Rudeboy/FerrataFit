@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,9 +68,9 @@ fun WorkoutScreen(
     onStopRest: () -> Unit
 ) {
     val entry = workout.entries.getOrNull(workout.currentIndex) ?: return
-    var showFinishDialog by remember { mutableStateOf(false) }
-    var showCancelDialog by remember { mutableStateOf(false) }
-    var showWhy by remember { mutableStateOf(false) }
+    var showFinishDialog by rememberSaveable { mutableStateOf(false) }
+    var showCancelDialog by rememberSaveable { mutableStateOf(false) }
+    var showWhy by rememberSaveable { mutableStateOf(false) }
     val chipState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -374,7 +375,7 @@ fun WorkoutScreen(
 
     // ---------- Dialoge ----------
     if (showFinishDialog) {
-        var note by remember { mutableStateOf("") }
+        var note by rememberSaveable { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showFinishDialog = false },
             title = { Text("Einheit abschließen?") },

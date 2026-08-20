@@ -14,6 +14,13 @@ import at.rudeboy.ferratafit.data.SetLog
 import at.rudeboy.ferratafit.data.Ascent
 import at.rudeboy.ferratafit.data.Badge
 import at.rudeboy.ferratafit.data.Ferrata
+import at.rudeboy.ferratafit.data.Draft
+import at.rudeboy.ferratafit.data.DraftEntry
+import at.rudeboy.ferratafit.data.DraftSet
+import at.rudeboy.ferratafit.data.DraftStore
+import at.rudeboy.ferratafit.data.Drafts
+import at.rudeboy.ferratafit.data.StageDraft
+import at.rudeboy.ferratafit.data.WorkoutDraft
 import at.rudeboy.ferratafit.data.Body
 import at.rudeboy.ferratafit.data.BodyImport
 import at.rudeboy.ferratafit.data.BodyMeasurement
@@ -58,7 +65,15 @@ data class ActiveWorkout(
     val dayId: String,
     val startedAt: Long,
     val entries: List<ActiveEntry>,
-    val currentIndex: Int = 0
+    val currentIndex: Int = 0,
+    /**
+     * Die Etappe, die beim Start offen war.
+     *
+     * Beim Abschließen wird gegen diese Kennung geprüft, nicht gegen die dann offene.
+     * Dazwischen kann eine Begehung den Zeiger weitergerückt haben — ohne diese Kennung
+     * würde die Einheit dann stillschweigend nicht gutgeschrieben.
+     */
+    val stageId: String? = null
 ) {
     val day get() = Catalog.day(dayId)
     val totalSets: Int get() = entries.sumOf { it.sets.size }
@@ -75,6 +90,7 @@ data class ActiveDrill(val id: String, val done: Boolean = false)
 /** Eine laufende Etappe ohne Gerät: Dehnen, Regeneration oder Ausdauer. */
 data class ActiveStage(
     val stage: Stage,
+    val startedAt: Long = 0L,
     val drills: List<ActiveDrill> = emptyList(),
     /** Nur bei Ausdauer-Etappen belegt. */
     val minutes: Int = 30,
@@ -87,6 +103,12 @@ data class ActiveStage(
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = Store(app)
+
+    /**
+     * Der angefangene Zustand. Getrennt vom Hauptbestand, weil beim Tippen sehr viele
+     * kleine Änderungen entstehen — die Begründung steht bei [Draft].
+     */
+    private val drafts = DraftStore(app)
     val health = HealthBridge(app)
 
     val state: StateFlow<AppState> = store.state
@@ -106,6 +128,137 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Frisch verdiente Abzeichen — die Oberfläche zeigt sie und meldet zurück. */
     private val _freshBadges = MutableStateFlow<List<Badge>>(emptyList())
     val freshBadges: StateFlow<List<Badge>> = _freshBadges.asStateFlow()
+
+    /**
+     * Eine angefangene Einheit, die zu alt ist, um ungefragt aufzuspringen.
+     * Die Oberfläche fragt dann nach, statt den Nutzer in ein Training zu werfen,
+     * an das er sich nicht mehr erinnert.
+     */
+    private val _resumeAsk = MutableStateFlow<Draft?>(null)
+    val resumeAsk: StateFlow<Draft?> = _resumeAsk.asStateFlow()
+
+    // ---------------- Angefangenes wieder aufnehmen ----------------
+
+    /**
+     * Baut die laufende Einheit aus dem Entwurf neu auf.
+     *
+     * Der Vorschlag wird mit dem ursprünglichen Startzeitpunkt neu gerechnet, nicht mit
+     * der jetzigen Uhrzeit. Sonst stünde nach einer Unterbrechung über Mitternacht eine
+     * andere Empfehlung da als vorher — dieselbe Einheit, aber plötzlich eine Woche weiter
+     * im Blockplan.
+     */
+    private fun rebuild(d: WorkoutDraft): ActiveWorkout? {
+        // Eine in einer neuen Fassung umbenannte Tageskennung würde beim ersten Zugriff
+        // auf den Titel eine Ausnahme werfen — lieber hier sauber aussteigen.
+        Catalog.dayOrNull(d.dayId) ?: return null
+
+        val s = state.value
+        var verloren = 0
+        val entries = d.entries.mapNotNull { de ->
+            val ex = Catalog.exercises.firstOrNull { it.id == de.exerciseId }
+            if (ex == null) {
+                verloren++
+                return@mapNotNull null
+            }
+            ActiveEntry(
+                suggestion = Progression.suggest(ex, s.sessions, s.profile, d.startedAt),
+                sets = de.sets.map { ActiveSet(it.weightKg, it.reps, it.seconds, it.done) }
+            )
+        }
+        if (entries.isEmpty()) return null
+
+        // Stillschweigend Sätze verschlucken wäre genau der Fehler, den diese Datei
+        // abschaffen soll. Wer etwas verliert, soll es erfahren.
+        if (verloren > 0) {
+            notify(
+                if (verloren == 1) "Eine Übung aus der angefangenen Einheit gibt es nicht mehr — der Rest ist wieder da."
+                else "$verloren Übungen aus der angefangenen Einheit gibt es nicht mehr — der Rest ist wieder da."
+            )
+        }
+        return ActiveWorkout(
+            dayId = d.dayId,
+            startedAt = d.startedAt,
+            entries = entries,
+            currentIndex = d.currentIndex.coerceIn(0, entries.lastIndex),
+            stageId = d.stageId
+        )
+    }
+
+    private fun rebuild(d: StageDraft): ActiveStage? {
+        val stage = Journey.stage(d.stageId) ?: return null
+        return ActiveStage(
+            stage = stage,
+            startedAt = d.startedAt,
+            drills = stage.mobilityIds.map { ActiveDrill(it, it in d.doneDrills) },
+            minutes = d.minutes,
+            extraMeters = d.extraMeters
+        )
+    }
+
+    private fun resume(draft: Draft) {
+        draft.workout?.let { w ->
+            _active.value = rebuild(w)
+            _restEndsAt.value = w.restEndsAt
+            _restTotal.value = w.restTotal
+            _restPausedWith.value = w.restPausedWith
+        }
+        draft.stage?.let { _activeStage.value = rebuild(it) }
+        _resumeAsk.value = null
+        // Wenn nichts rekonstruierbar war — etwa weil eine Übung nicht mehr im Katalog
+        // steht — bleibt sonst eine Leiche auf der Platte liegen.
+        if (_active.value == null && _activeStage.value == null) drafts.clear() else persistDraft()
+    }
+
+    fun resumePending() = _resumeAsk.value?.let { resume(it) }
+
+    fun discardPending() {
+        _resumeAsk.value = null
+        drafts.clear()
+    }
+
+    /**
+     * Schreibt den angefangenen Zustand auf die Platte.
+     *
+     * Wird nach jeder Änderung aufgerufen, auch nach jedem Antippen eines Steppers.
+     * Verzögertes Schreiben würde genau die letzte Eingabe verlieren — also die, an die
+     * man sich am ehesten erinnert.
+     */
+    private fun persistDraft() {
+        val w = _active.value
+        val st = _activeStage.value
+        drafts.save(
+            Draft(
+                workout = w?.let { a ->
+                    WorkoutDraft(
+                        dayId = a.dayId,
+                        startedAt = a.startedAt,
+                        lastTouchedAt = System.currentTimeMillis(),
+                        stageId = a.stageId,
+                        currentIndex = a.currentIndex,
+                        entries = a.entries.map { e ->
+                            DraftEntry(
+                                exerciseId = e.exercise.id,
+                                sets = e.sets.map { DraftSet(it.weightKg, it.reps, it.seconds, it.done) }
+                            )
+                        },
+                        restEndsAt = _restEndsAt.value,
+                        restTotal = _restTotal.value,
+                        restPausedWith = _restPausedWith.value
+                    )
+                },
+                stage = st?.let { a ->
+                    StageDraft(
+                        stageId = a.stage.id,
+                        startedAt = a.startedAt,
+                        lastTouchedAt = System.currentTimeMillis(),
+                        doneDrills = a.drills.filter { it.done }.map { it.id },
+                        minutes = a.minutes,
+                        extraMeters = a.extraMeters
+                    )
+                }
+            )
+        )
+    }
 
     fun clearToast() { _toast.value = null }
     fun notify(msg: String, error: Boolean = false) { _toast.value = Toast(msg, error) }
@@ -177,19 +330,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Startet die offene Etappe — je nach Art als Krafteinheit oder als Dehn-/Ausdauerblock. */
     fun startStage(stageId: String) {
         val stage = Journey.stage(stageId) ?: return
+        val now = System.currentTimeMillis()
         when (stage.kind) {
             StageKind.STRENGTH -> stage.dayId?.let { startWorkout(it) }
-            StageKind.ENDURANCE -> _activeStage.value = ActiveStage(stage)
+            StageKind.ENDURANCE -> _activeStage.value = ActiveStage(stage, startedAt = now)
             else -> _activeStage.value = ActiveStage(
                 stage = stage,
+                startedAt = now,
                 drills = stage.mobilityIds.map { ActiveDrill(it) }
             )
         }
+        persistDraft()
     }
 
     fun skipStage(stageId: String) {
         val stage = Journey.stage(stageId) ?: return
         _activeStage.value = null
+        persistDraft()
         completeStage(stage, skipped = true)
     }
 
@@ -199,6 +356,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val d = drills.getOrNull(index) ?: return
         drills[index] = d.copy(done = !d.done)
         _activeStage.value = a.copy(drills = drills)
+        persistDraft()
     }
 
     fun adjustEndurance(minutes: Int? = null, meters: Int? = null) {
@@ -207,9 +365,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             minutes = minutes?.coerceAtLeast(0) ?: a.minutes,
             extraMeters = meters?.coerceAtLeast(0) ?: a.extraMeters
         )
+        persistDraft()
     }
 
-    fun cancelStage() { _activeStage.value = null }
+    fun cancelStage() {
+        _activeStage.value = null
+        persistDraft()
+    }
 
     /** Wie viele Abzeichen sind verdient? Für die Kachel auf der Startseite. */
     fun badgeCount(): Int = Journey.earnedBadges(badgeSnapshot()).size
@@ -227,16 +389,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (a.extraMeters > 0) append(" · ${a.extraMeters} Hm")
             }
             _activeStage.value = null
+            persistDraft()
             completeStage(stage, detail = detail, metersOverride = stage.meters + a.extraMeters)
             return
         }
 
         if (a.doneCount == 0) {
             _activeStage.value = null
+            persistDraft()
             notify("Etappe verworfen — es war keine Übung abgehakt.")
             return
         }
         _activeStage.value = null
+        persistDraft()
         completeStage(stage, detail = "${a.doneCount} von ${a.drills.size} Übungen")
     }
 
@@ -287,12 +452,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun addAscent(ascent: Ascent) {
         val before = Journey.earnedBadges(badgeSnapshot()).map { it.id }.toSet()
+        val progressBefore = state.value.progress
+
+        // Der Tag am Fels zählt als Training — aber nur einmal. Wer an dem Tag schon
+        // eine Etappe abgehakt hat, bekommt keine zweite gutgeschrieben, und eine zweite
+        // Begehung am selben Tag schiebt den Wochenzyklus nicht weiter.
+        val covers = Ferrata.coversStage(progressBefore, ascent.date)
+        val stage = Journey.current(progressBefore)
 
         store.update { s ->
             s.copy(
                 ascents = s.ascents + ascent,
                 progress = s.progress + StageLog(
-                    stageId = Ferrata.EXTRA_STAGE_ID,
+                    // Deckt die Begehung den Tag ab, trägt sie die Kennung der offenen
+                    // Etappe und rückt den Zyklus um genau eine weiter. Sonst steht sie
+                    // unter der Sonderkennung außerhalb des Rhythmus.
+                    stageId = if (covers) stage.id else Ferrata.EXTRA_STAGE_ID,
                     kind = StageKind.FERRATA.name,
                     meters = ascent.climbMeters,
                     at = ascent.date,
@@ -309,7 +484,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             store.update { s -> s.copy(seenBadges = after.map { it.id }.toSet()) }
             _freshBadges.value = fresh
         }
-        notify(Ferrata.completionLine(ascent))
+
+        val line = Ferrata.completionLine(ascent)
+        notify(if (covers) "$line Die Etappe „${stage.title}“ ist damit abgehakt." else line)
     }
 
     fun removeAscent(id: String) = store.update { s ->
@@ -338,6 +515,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------- Training ----------------
 
     fun startWorkout(dayId: String) {
+        // Eine offene Rückfrage bedeutet: Es liegt eine angefangene Einheit auf der Platte,
+        // über die noch nicht entschieden wurde. Sie jetzt zu überschreiben, hieße die
+        // gestrigen Sätze wortlos zu löschen — also erst entscheiden lassen.
+        if (_resumeAsk.value != null) {
+            notify("Es ist noch eine Einheit offen. Entscheide zuerst, ob du sie fortsetzt.")
+            return
+        }
+
         val s = state.value
         val now = System.currentTimeMillis()
         val entries = Progression.suggestAll(Catalog.day(dayId), s, now).map { sug ->
@@ -352,11 +537,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             )
         }
-        _active.value = ActiveWorkout(dayId, now, entries)
+        _active.value = ActiveWorkout(
+            dayId = dayId,
+            startedAt = now,
+            entries = entries,
+            // Die gerade offene Etappe wird festgehalten, damit das Abschließen sie auch
+            // dann noch findet, wenn zwischendurch eine Begehung den Zeiger bewegt hat.
+            stageId = Journey.current(s.progress).takeIf { it.dayId == dayId }?.id
+        )
+        persistDraft()
     }
 
     fun selectExercise(index: Int) {
         _active.value = _active.value?.copy(currentIndex = index)
+        persistDraft()
     }
 
     fun updateSet(entryIndex: Int, setIndex: Int, block: (ActiveSet) -> ActiveSet) {
@@ -368,6 +562,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         sets[setIndex] = block(set)
         entries[entryIndex] = entry.copy(sets = sets)
         _active.value = w.copy(entries = entries)
+        persistDraft()
     }
 
     fun toggleSetDone(entryIndex: Int, setIndex: Int) =
@@ -384,9 +579,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         val entries = w.entries.toMutableList().also { it[entryIndex] = entry.copy(sets = sets) }
         _active.value = w.copy(entries = entries)
+        persistDraft()
     }
 
-    fun cancelWorkout() { _active.value = null }
+    fun cancelWorkout() {
+        _active.value = null
+        stopRest()
+        persistDraft()
+    }
 
     /**
      * Beendet die Einheit: speichert lokal und schiebt sie — falls aktiviert —
@@ -411,6 +611,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
         if (logs.isEmpty()) {
             _active.value = null
+            stopRest()
+            persistDraft()
             notify("Einheit verworfen — es war kein Satz abgehakt.")
             return
         }
@@ -419,7 +621,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             id = UUID.randomUUID().toString(),
             dayId = w.dayId,
             startedAt = w.startedAt,
-            finishedAt = now,
+            // Gedeckelt: Eine über Nacht vergessene Einheit bekäme sonst vierzehn Stunden
+            // Dauer eingetragen und würde jede Statistik verzerren.
+            finishedAt = Drafts.cappedDuration(w.startedAt, now),
             sets = logs,
             note = note
         )
@@ -437,24 +641,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         _active.value = null
+        stopRest()
+        persistDraft()
 
         // Die Krafteinheit ist zugleich die offene Etappe — abhaken und gutschreiben.
+        //
+        // Geprüft wird gegen die Etappe, die beim START offen war. Zwischendurch kann eine
+        // Begehung den Zeiger weitergerückt haben; gegen die jetzt offene zu prüfen, würde
+        // die Einheit stillschweigend um ihre Höhenmeter bringen.
         val duration = session.durationMin
-        val stage = Journey.current(state.value.progress)
-        if (stage.kind == StageKind.STRENGTH && stage.dayId == w.dayId) {
-            completeStage(stage, detail = "${logs.size} Sätze · $duration min")
-        } else {
-            notify("Gespeichert: ${logs.size} Sätze in $duration Minuten. Stark!")
+        val gemerkt = w.stageId?.let { Journey.stage(it) }
+        val offen = Journey.current(state.value.progress)
+        val stage = when {
+            gemerkt != null && gemerkt.id == offen.id -> offen
+            gemerkt == null && offen.kind == StageKind.STRENGTH && offen.dayId == w.dayId -> offen
+            else -> null
+        }
+        when {
+            stage != null -> completeStage(stage, detail = "${logs.size} Sätze · $duration min")
+            gemerkt != null -> notify(
+                "Gespeichert: ${logs.size} Sätze in $duration Minuten. " +
+                    "Die Etappe „${gemerkt.title}“ war inzwischen schon abgehakt — " +
+                    "die Einheit zählt trotzdem für deine Vorschläge."
+            )
+            else -> notify("Gespeichert: ${logs.size} Sätze in $duration Minuten. Stark!")
         }
 
-        if (state.value.profile.healthConnectEnabled) {
-            viewModelScope.launch {
-                val title = "FerrataFit · ${Catalog.day(w.dayId).title}"
-                health.writeSession(session, title)
-                    .onSuccess { notify("An Samsung Health übergeben.") }
-                    .onFailure { notify("Health Connect: ${it.message ?: "Übertragung fehlgeschlagen"}", true) }
-            }
-        }
     }
 
     // ---------------- Einheiten nachbearbeiten ----------------
@@ -511,7 +723,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         _editing.value = null
         notify("Einheit angepasst. Die Vorschläge rechnen ab sofort damit.")
-        pushToHealth(edited)
     }
 
     /**
@@ -543,14 +754,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun prunedBadges(s: AppState): Set<String> {
         val stillEarned = Journey.earnedBadges(badgeSnapshot(s)).map { it.id }.toSet()
         return s.seenBadges intersect stillEarned
-    }
-
-    /** Schiebt eine geänderte Einheit erneut zu Health Connect. */
-    private fun pushToHealth(session: Session) {
-        if (!state.value.profile.healthConnectEnabled) return
-        viewModelScope.launch {
-            health.writeSession(session, "FerrataFit · ${Catalog.day(session.dayId).title}")
-        }
     }
 
     // ---------------- Health Connect ----------------
@@ -659,6 +862,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _restTotal.value = seconds
         _restPausedWith.value = null
         _restEndsAt.value = System.currentTimeMillis() + seconds * 1000L
+        persistDraft()
     }
 
     fun addRest(seconds: Int) {
@@ -668,6 +872,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _restEndsAt.value += seconds * 1000L
         }
         _restTotal.value = maxOf(_restTotal.value, remainingRest())
+        persistDraft()
     }
 
     fun toggleRest() {
@@ -679,12 +884,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _restPausedWith.value = remainingRest()
             _restEndsAt.value = 0L
         }
+        persistDraft()
     }
 
     fun stopRest() {
         _restEndsAt.value = 0L
         _restTotal.value = 0
         _restPausedWith.value = null
+        persistDraft()
     }
 
     /** Restsekunden — aus dem Endzeitpunkt gerechnet, also unabhängig davon, ob die App lief. */
@@ -802,28 +1009,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    /** Schiebt alle bisherigen Einheiten nachträglich zu Health Connect. */
-    fun syncAllToHealth() {
-        viewModelScope.launch {
-            val sessions = state.value.sessions
-            if (sessions.isEmpty()) {
-                notify("Es gibt noch keine Einheiten zum Übertragen.")
-                return@launch
-            }
-            var ok = 0
-            var failed = 0
-            sessions.forEach { s ->
-                health.writeSession(s, "FerrataFit · ${Catalog.day(s.dayId).title}")
-                    .onSuccess { ok++ }
-                    .onFailure { failed++ }
-            }
-            notify(
-                if (failed == 0) "$ok Einheiten an Samsung Health übergeben."
-                else "$ok übertragen, $failed fehlgeschlagen.",
-                failed > 0
-            )
-        }
-    }
 
     // ---------------- Sicherung ----------------
 
@@ -833,4 +1018,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (store.importJson(text)) notify("Sicherung eingelesen.")
         else notify("Die Datei konnte nicht gelesen werden.", true)
     }
+    // ------------------------------------------------------------------
+    // Wiederaufnahme beim Start
+    // ------------------------------------------------------------------
+
+    /**
+     * Steht bewusst ganz am Ende der Klasse.
+     *
+     * Kotlin führt Initialisierer in der Reihenfolge ihrer Deklaration aus. Weiter oben
+     * hätte dieser Block die Felder der Pausenuhr angefasst, bevor es sie gibt — die App
+     * stürzte dann beim Start ab, sobald eine angefangene Einheit auf der Platte lag.
+     * Genau das ist einmal passiert. Wer hier etwas verschiebt, holt es zurück.
+     */
+    init {
+        val draft = drafts.load()
+        val now = System.currentTimeMillis()
+        when {
+            draft.isEmpty -> Unit
+            // Erkennbar vergessen — wortlos wegräumen, nicht danach fragen
+            Drafts.isExpired(draft, now) -> drafts.clear()
+            Drafts.resumesSilently(draft, now) -> resume(draft)
+            else -> _resumeAsk.value = draft
+        }
+    }
+
 }

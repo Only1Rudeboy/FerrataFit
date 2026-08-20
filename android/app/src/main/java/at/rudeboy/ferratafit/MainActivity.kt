@@ -49,10 +49,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
+import at.rudeboy.ferratafit.data.Drafts
 import at.rudeboy.ferratafit.ui.FerrataTheme
 import at.rudeboy.ferratafit.ui.Palette
 import at.rudeboy.ferratafit.ui.screens.AscentScreen
@@ -95,6 +97,7 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     val freshBadges by vm.freshBadges.collectAsState()
     val bodySyncing by vm.bodySyncing.collectAsState()
     val editing by vm.editing.collectAsState()
+    val resumeAsk by vm.resumeAsk.collectAsState()
     val restEndsAt by vm.restEndsAt.collectAsState()
     val restTotal by vm.restTotal.collectAsState()
     val restPausedWith by vm.restPausedWith.collectAsState()
@@ -112,9 +115,9 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     }
 
     var tab by remember { mutableIntStateOf(0) }
-    var planDayId by remember { mutableStateOf<String?>(null) }
-    var skipAsk by remember { mutableStateOf<String?>(null) }
-    var logAscent by remember { mutableStateOf(false) }
+    var planDayId by rememberSaveable { mutableStateOf<String?>(null) }
+    var skipAsk by rememberSaveable { mutableStateOf<String?>(null) }
+    var logAscent by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(toast) {
@@ -216,7 +219,6 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onSetReminder = { on, h, m -> vm.setReminder(on, h, m) },
                         onSetReminderSkip = { vm.setReminderSkipIfDone(it) },
                         onSyncBody = { vm.syncBody() },
-                        onSyncAll = { vm.syncAllToHealth() },
                         onRestartCycle = {
                             vm.restartCycle()
                             vm.notify("Neuer Block gestartet — Woche 1 mit reichlich Puffer.")
@@ -242,6 +244,30 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                     onCancel = { logAscent = false }
                 )
             }
+        }
+
+        // Eine ältere angefangene Einheit springt nicht ungefragt auf. Wer nach zwei Tagen
+        // die App öffnet und unvermittelt in einem halben Training landet, weiß nicht,
+        // was er da vor sich hat — und hakt im Zweifel Sätze ab, die er nie gemacht hat.
+        resumeAsk?.let { draft ->
+            val alter = Drafts.ageLabel(draft, System.currentTimeMillis())
+            AlertDialog(
+                onDismissRequest = { },
+                title = { Text("Angefangene Einheit") },
+                text = {
+                    Text(
+                        "Du hast $alter etwas begonnen und nicht abgeschlossen. " +
+                            "Weitermachen oder verwerfen?"
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { vm.resumePending() }) { Text("Weitermachen") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { vm.discardPending() }) { Text("Verwerfen") }
+                },
+                containerColor = Palette.SurfaceHigh
+            )
         }
 
         // Das laufende Training legt sich als eigene Ebene über die Navigation,

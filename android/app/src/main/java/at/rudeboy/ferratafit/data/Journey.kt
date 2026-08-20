@@ -482,8 +482,18 @@ object Journey {
      * nicht wenn eine App es vorsieht. Würden sie mitzählen, verschöbe jede Tour den
      * ganzen Rhythmus.
      */
-    fun currentIndex(progress: List<StageLog>): Int =
-        progress.count { it.stageId != Ferrata.EXTRA_STAGE_ID }
+    fun currentIndex(progress: List<StageLog>): Int = stageLogs(progress).size
+
+    /**
+     * Nur die Einträge, die eine Etappe des Wochenzyklus belegen.
+     *
+     * Deckt eine Begehung den Tag ab, trägt sie die Kennung der Etappe und ist hier dabei.
+     * Steht sie außerhalb — zweite Tour am selben Tag, oder es wurde ohnehin schon
+     * trainiert — fällt sie heraus. Alles, was Etappen zählt, muss durch diese Funktion,
+     * sonst laufen Zyklus und Abzeichen auseinander.
+     */
+    fun stageLogs(progress: List<StageLog>): List<StageLog> =
+        progress.filter { it.stageId != Ferrata.EXTRA_STAGE_ID }
     fun current(progress: List<StageLog>): Stage = stageAt(currentIndex(progress))
 
     /** Wievielte Runde durch den Wochenzyklus? Ab 1 gezählt. */
@@ -537,10 +547,10 @@ object Journey {
 
     val badges: List<Badge> = listOf(
         Badge("first_stage", "🥾", "Losgegangen", "Erste Etappe abgeschlossen") {
-            it.progress.count { p -> !p.skipped } >= 1
+            stageLogs(it.progress).count { p -> !p.skipped } >= 1
         },
         Badge("first_week", "📅", "Erste Runde", "Alle sieben Etappen eines Zyklus geschafft") {
-            it.progress.count { p -> !p.skipped } >= 7
+            stageLogs(it.progress).count { p -> !p.skipped } >= 7
         },
         Badge("hang30", "✊", "Griffig", "30 Sekunden am Stück gehangen") {
             it.bestDeadhang >= 30
@@ -572,7 +582,7 @@ object Journey {
             it.meters >= 2600
         },
         Badge("no_skip_cycle", "💎", "Lückenlos", "Einen kompletten Zyklus ohne Auslassen") { s ->
-            val last7 = s.progress.takeLast(7)
+            val last7 = stageLogs(s.progress).takeLast(7)
             last7.size == 7 && last7.none { it.skipped }
         },
         Badge("outdoor5", "🌄", "Draußen unterwegs", "Fünf Ausdauer-Etappen im Freien") { s ->

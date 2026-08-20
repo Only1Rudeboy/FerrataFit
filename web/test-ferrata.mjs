@@ -117,5 +117,39 @@ const abweichend = FERRATAS.filter((f) => ktGrades[f.id] && ktGrades[f.id] !== f
   .map((f) => `${f.name}: Web ${f.grade} vs. Android ${ktGrades[f.id]}`);
 ok('gleiche Schwierigkeitsgrade', abweichend.length === 0, abweichend.join('\n      '));
 
+console.log('\nBegehung zählt aufs heutige Training');
+const HOUR = 3600000;
+const heute = 1700000000000;
+const stageLog = (id, at) => ({ stageId: id, kind: 'STRENGTH', meters: 100, at });
+
+// Die Regel spiegelt Ferrata.coversStage in der Android-App.
+const coversStage = (progress, date) =>
+  !progress.some((p) => p.stageId !== F.EXTRA_STAGE_ID && sameDay(p.at, date));
+const sameDay = (a, b) => a > 0 && b > 0 &&
+  new Date(a).toDateString() === new Date(b).toDateString();
+
+ok('ein Tag am Fels deckt die offene Etappe ab', coversStage([], heute));
+ok('nach Training am selben Tag zählt sie nicht nochmal',
+  !coversStage([stageLog('S1', heute - 2 * HOUR)], heute));
+ok('zweite Begehung am selben Tag schiebt nichts weiter',
+  !coversStage([{ stageId: 'S1', kind: 'FERRATA', meters: 400, at: heute - 4 * HOUR }], heute));
+ok('Einträge außerhalb des Zyklus blockieren nicht',
+  coversStage([{ stageId: F.EXTRA_STAGE_ID, kind: 'FERRATA', meters: 300, at: heute - 5 * HOUR }], heute));
+ok('gestern zählt nicht für heute', coversStage([stageLog('S1', heute - 26 * HOUR)], heute));
+
+console.log('\nDie App schreibt nichts nach Health Connect');
+const manifest = readFileSync(join(HERE, '..', 'android', 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8');
+ok('keine Schreibrechte im Manifest', !/permission\.health\.WRITE_/.test(manifest),
+  (manifest.match(/permission\.health\.WRITE_\w+/g) || []).join(', '));
+// Kommentare ausblenden — sonst schlägt der eigene Hinweis „kein getWritePermission" an
+const ohneKommentare = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+const bridge = ohneKommentare(readFileSync(join(HERE, '..', 'android', 'app', 'src', 'main', 'java', 'at',
+  'rudeboy', 'ferratafit', 'health', 'HealthBridge.kt'), 'utf8'));
+ok('kein Schreibrecht in der Berechtigungsmenge', !/getWritePermission/.test(bridge));
+ok('kein Schreibaufruf in der Brücke', !/insertRecords/.test(bridge));
+const vm = ohneKommentare(readFileSync(join(HERE, '..', 'android', 'app', 'src', 'main', 'java', 'at',
+  'rudeboy', 'ferratafit', 'AppViewModel.kt'), 'utf8'));
+ok('kein Übertragen von Einheiten', !/writeSession|syncAllToHealth|pushToHealth/.test(vm));
+
 console.log(failed === 0 ? '\nAlles grün.\n' : `\n${failed} Prüfung(en) fehlgeschlagen.\n`);
 process.exit(failed === 0 ? 0 : 1);

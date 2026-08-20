@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,20 +39,23 @@ import java.util.Calendar
 fun OnboardingScreen(
     onDone: (Set<Station>, Double, Double, Long?, String) -> Unit
 ) {
-    var step by remember { mutableIntStateOf(0) }
-    var stations by remember {
+    var step by rememberSaveable { mutableIntStateOf(0) }
+    // Als Namensliste statt als Menge von Enums: Nur Zeichenketten lassen sich ohne
+    // eigenen Serialisierer im Zustandsbündel ablegen.
+    var stationNames by rememberSaveable {
         mutableStateOf(
-            setOf(
+            listOf(
                 Station.LAT_PULLDOWN, Station.CHEST_PRESS, Station.BUTTERFLY,
                 Station.LEG_EXTENSION, Station.LEG_CURL, Station.PULLUP_BAR
-            )
+            ).map { it.name }
         )
     }
-    var bodyweight by remember { mutableStateOf("78") }
-    var plateStep by remember { mutableStateOf("5") }
-    var targetName by remember { mutableStateOf("") }
-    var weeksAhead by remember { mutableIntStateOf(12) }
-    var hasTarget by remember { mutableStateOf(true) }
+    val stations = stationNames.mapNotNull { n -> Station.entries.firstOrNull { it.name == n } }.toSet()
+    var bodyweight by rememberSaveable { mutableStateOf("78") }
+    var plateStep by rememberSaveable { mutableStateOf("5") }
+    var targetName by rememberSaveable { mutableStateOf("") }
+    var weeksAhead by rememberSaveable { mutableIntStateOf(12) }
+    var hasTarget by rememberSaveable { mutableStateOf(true) }
 
     Box(
         Modifier
@@ -122,7 +126,7 @@ fun OnboardingScreen(
                             station = st,
                             checked = st in stations,
                             onToggle = {
-                                stations = if (st in stations) stations - st else stations + st
+                                stationNames = if (st in stations) stationNames - st.name else stationNames + st.name
                             }
                         )
                         Spacer(Modifier.height(8.dp))

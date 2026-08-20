@@ -14,12 +14,10 @@ import androidx.health.connect.client.records.LeanBodyMassRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
-import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import at.rudeboy.ferratafit.data.BodyMeasurement
-import at.rudeboy.ferratafit.data.Session
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -30,18 +28,29 @@ import kotlin.reflect.KClass
  *
  * Samsung bietet zwar ein eigenes SDK an, das aber eine Partnerfreigabe verlangt und
  * damit für eine private App ausscheidet. Der offene Weg führt über Health Connect:
- * Samsung Health synchronisiert Training, Schritte und Herzfrequenz bidirektional
- * damit. Schreibt die App also eine Einheit nach Health Connect, taucht sie kurz
- * darauf auch in Samsung Health auf — der Abgleich läuft periodisch, typischerweise
- * innerhalb einer Stunde, nicht sekundengenau.
+ * Samsung Health gleicht Training, Schritte, Herzfrequenz und Körperdaten damit ab.
+ *
+ * **Diese Brücke liest ausschließlich.** Sie schreibt nichts nach Health Connect und
+ * fordert auch keine Schreibrechte an. Das ist eine ausdrückliche Entscheidung des
+ * Nutzers: Die Trainingseinheiten dieser App sollen nicht in Googles Gesundheitsakte
+ * landen. Wer das ändern will, ändert damit eine Zusage — nicht nur Code.
  */
 class HealthBridge(private val context: Context) {
 
     companion object {
         private const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
 
+        /**
+         * Sportarten, hinter denen eine Klettersteigtour stecken kann.
+         * Bewusst eng gehalten — Radfahren oder Laufen sind keine Kandidaten.
+         */
+        private val OUTDOOR_TYPES = setOf(
+            ExerciseSessionRecord.EXERCISE_TYPE_ROCK_CLIMBING,
+            ExerciseSessionRecord.EXERCISE_TYPE_HIKING
+        )
+
         val PERMISSIONS: Set<String> = setOf(
-            HealthPermission.getWritePermission(ExerciseSessionRecord::class),
+            // Nur Lesen. Es gibt bewusst kein getWritePermission in dieser Menge.
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(StepsRecord::class),
             // Körperdaten von der Waage — kommen über Samsung Health aus FitDays herein
@@ -91,42 +100,6 @@ class HealthBridge(private val context: Context) {
         }
     }
 
-    /**
-     * Schreibt eine Trainingseinheit als Krafttraining nach Health Connect.
-     *
-     * Die Session-ID der App wandert als clientRecordId mit. Health Connect erkennt daran
-     * Wiederholungen, sodass ein zweiter Schreibversuch denselben Eintrag aktualisiert,
-     * statt ein Duplikat anzulegen.
-     */
-    suspend fun writeSession(session: Session, title: String): Result<Unit> {
-        val client = clientOrNull()
-            ?: return Result.failure(IllegalStateException("Health Connect ist auf diesem Gerät nicht verfügbar."))
-
-        return try {
-            val zone = ZoneId.systemDefault()
-            val start = Instant.ofEpochMilli(session.startedAt)
-            val end = Instant.ofEpochMilli(session.finishedAt.coerceAtLeast(session.startedAt + 60_000L))
-
-            val record = ExerciseSessionRecord(
-                startTime = start,
-                startZoneOffset = zone.rules.getOffset(start),
-                endTime = end,
-                endZoneOffset = zone.rules.getOffset(end),
-                exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
-                title = title,
-                notes = buildString {
-                    append("${session.sets.size} Sätze")
-                    if (session.volumeKg > 0) append(" · ${session.volumeKg.toInt()} kg Gesamtlast")
-                    if (session.note.isNotBlank()) append(" · ${session.note}")
-                },
-                metadata = Metadata.manualEntry(clientRecordId = session.id)
-            )
-            client.insertRecords(listOf(record))
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 
     /** Schritte des heutigen Tages — kommen bei Samsung-Nutzern von der Uhr bzw. dem Handy. */
     suspend fun stepsToday(): Long? {
@@ -165,6 +138,45 @@ class HealthBridge(private val context: Context) {
      * mehrere davon mit praktisch demselben Zeitstempel. Deshalb wird zu jeder Wägung
      * der zeitlich nächste Eintrag gesucht, sofern er höchstens fünf Minuten entfernt ist.
      */
+    /**
+     * Bergtouren aus Health Connect — Kandidaten für eine Begehung.
+     *
+     * Samsung Health führt eine Klettersteigtour je nach Aufzeichnung als Klettern oder
+     * als Wandern; beides wird gelesen. Was daraus wird, entscheidet der Nutzer: Die App
+     * trägt nichts von allein ein, sondern schlägt vor. Der Grund ist derselbe wie
+     * überall im Fels-Bereich — Schwierigkeit und Gefühl weiß nur, wer dort war, und
+     * ohne diese beiden Angaben wäre der Eintrag für die Empfehlung wertlos.
+     *
+     * Die Höhenmeter liefert Health Connect nicht mit; sie müssen von Hand ergänzt oder
+     * aus dem Routenkatalog übernommen werden.
+     */
+    suspend fun readOutdoorSessions(days: Int = 30): List<OutdoorSession> {
+        val client = clientOrNull() ?: return emptyList()
+        val end = Instant.now()
+        val start = end.minus(days.toLong(), ChronoUnit.DAYS)
+
+        return try {
+            client.readRecords(
+                ReadRecordsRequest(ExerciseSessionRecord::class, TimeRangeFilter.between(start, end))
+            ).records
+                .filter { it.exerciseType in OUTDOOR_TYPES }
+                .map {
+                    OutdoorSession(
+                        startedAt = it.startTime.toEpochMilli(),
+                        finishedAt = it.endTime.toEpochMilli(),
+                        title = it.title.orEmpty(),
+                        isClimbing = it.exerciseType == ExerciseSessionRecord.EXERCISE_TYPE_ROCK_CLIMBING
+                    )
+                }
+                // Zu kurz, um eine Tour zu sein — ein Spaziergang zum Bäcker soll nicht
+                // als Klettersteig vorgeschlagen werden.
+                .filter { it.durationMin >= 30 }
+                .sortedByDescending { it.startedAt }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
     suspend fun readBody(days: Int = 400): List<BodyMeasurement> {
         val client = clientOrNull() ?: return emptyList()
         val end = Instant.now()
@@ -242,4 +254,17 @@ class HealthBridge(private val context: Context) {
         Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+}
+
+/**
+ * Eine draußen aufgezeichnete Einheit, wie Health Connect sie liefert.
+ * Rohmaterial für einen Vorschlag, kein fertiger Eintrag.
+ */
+data class OutdoorSession(
+    val startedAt: Long,
+    val finishedAt: Long,
+    val title: String = "",
+    val isClimbing: Boolean = false
+) {
+    val durationMin: Int get() = ((finishedAt - startedAt) / 60_000L).toInt().coerceAtLeast(0)
 }
