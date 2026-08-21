@@ -307,6 +307,16 @@ abschalten — es ist neben der App-Aktualisierung der einzige Netzzugriff der A
 direkt an den Steig hängst. Verkleinert im App-Ordner (Android) bzw. in IndexedDB (Web);
 das Original bleibt unangetastet.
 
+**Medienpaket (Android):** Wer eigenes Material hat — Scans aus dem eigenen Führer, eine
+Privatkopie der Tourenseiten für den persönlichen Gebrauch, Fotos von Freunden — packt es
+als ZIP mit einer `index.json` und liest es unter **Mehr → Medienpaket** ein. Die Bilder
+und Topos erscheinen dann im Foto- und Topo-Reiter des jeweiligen Steigs, antippen öffnet
+sie groß mit Zoom. Das Paket bleibt auf dem Gerät; die App lädt davon nichts hoch und
+bündelt nichts davon. Beim Einlesen wird jeder Pfad im Archiv geprüft — ein Paket, das
+aus dem App-Ordner ausbrechen will, wird abgewiesen. Format: `index.json` mit
+`{"routes": {"<steig-kennung>": {"photos": [{"file": "...", "caption": "...",
+"source": "..."}], "topos": [...]}}}`, Kennungen wie in `FerrataRoutes.kt`.
+
 **Topo** ist ein schematischer Steigplan: vom Einstieg unten zum Ausstieg oben, jeder
 Abschnitt mit Grad, Art (Wand, Querung, Leiter, Brücke, Überhang, Höhle …) und
 Schlüsselstelle, Notausstiege an ihrer Stelle. 307 Abschnitte zu allen 44 Steigen,

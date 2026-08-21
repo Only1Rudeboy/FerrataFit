@@ -51,7 +51,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalContext
 import at.rudeboy.ferratafit.data.FerrataMedia
+import at.rudeboy.ferratafit.data.LocalMediaItem
+import at.rudeboy.ferratafit.data.MediaPack
 import at.rudeboy.ferratafit.ui.RemoteImage
+import at.rudeboy.ferratafit.ui.ZoomImageDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.asImageBitmap
@@ -97,13 +100,15 @@ fun FerrataScreen(
     onTogglePlanned: (String) -> Unit,
     onRemoveAscent: (String) -> Unit = {},
     onAddRoutePhoto: (String, android.net.Uri) -> Unit = { _, _ -> },
-    onRemoveRoutePhoto: (String) -> Unit = {}
+    onRemoveRoutePhoto: (String) -> Unit = {},
+    mediaPack: MediaPack? = null
 ) {
     fun extrasFor(routeId: String) = RouteExtras(
         ownPhotos = ownPhotosFor(state, routeId),
         webPhotosEnabled = state.profile.webPhotosEnabled,
         onAddPhoto = onAddRoutePhoto,
-        onRemovePhoto = onRemoveRoutePhoto
+        onRemovePhoto = onRemoveRoutePhoto,
+        pack = mediaPack
     )
     val now = System.currentTimeMillis()
     val readiness = Stats.ferrataReadiness(state.sessions, now)
@@ -547,7 +552,9 @@ data class RouteExtras(
     val ownPhotos: List<Pair<String, String?>> = emptyList(),
     val webPhotosEnabled: Boolean = true,
     val onAddPhoto: (String, android.net.Uri) -> Unit = { _, _ -> },
-    val onRemovePhoto: (String) -> Unit = {}
+    val onRemovePhoto: (String) -> Unit = {},
+    /** Das eingelesene Medienpaket, falls vorhanden. */
+    val pack: MediaPack? = null
 )
 
 private fun ownPhotosFor(state: AppState, routeId: String): List<Pair<String, String?>> =
@@ -617,7 +624,9 @@ private fun RouteCard(
 
                 // Vier Reiter: die Beschreibung, Fotos aus dem Netz, eigene Fotos, Topo.
                 // Die Zahl hinter „Fotos" verrät vorab, ob sich der Tipp lohnt.
-                val webCount = FerrataMedia.photosFor(route.id).size
+                val local = extras.pack?.forRoute(route.id)
+                val webCount = FerrataMedia.photosFor(route.id).size + (local?.photos?.size ?: 0)
+                val topoCount = local?.topos?.size ?: 0
                 Row(
                     Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -626,7 +635,7 @@ private fun RouteCard(
                         "Info",
                         if (webCount > 0) "Fotos · $webCount" else "Fotos",
                         if (extras.ownPhotos.isNotEmpty()) "Eigene · ${extras.ownPhotos.size}" else "Eigene",
-                        "Topo"
+                        if (topoCount > 0) "Topo · $topoCount" else "Topo"
                     ).forEachIndexed { i, label ->
                         FilterChip(label, tab == i) { tab = i }
                     }
@@ -634,9 +643,9 @@ private fun RouteCard(
                 Spacer(Modifier.height(12.dp))
 
                 when (tab) {
-                    1 -> WebPhotosTab(route, extras.webPhotosEnabled)
+                    1 -> WebPhotosTab(route, extras.webPhotosEnabled, extras.pack)
                     2 -> OwnPhotosTab(route, extras)
-                    3 -> TopoTab(route)
+                    3 -> TopoTab(route, extras.pack)
                     else -> Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (route.crux.isNotBlank()) {
@@ -722,11 +731,64 @@ private fun RouteCard(
  * dürfen. Dazu der Link zur Galerie des Tourenportals — dort liegen die Fotos, die
  * die App aus Rechtsgründen nicht einbinden kann.
  */
+/** Bilder aus dem Medienpaket — antippen öffnet sie groß, mit Zoom. */
 @Composable
-private fun WebPhotosTab(route: FerrataRoute, enabled: Boolean) {
+private fun PackImages(items: List<LocalMediaItem>, pack: MediaPack, heading: String, fit: Boolean = false) {
+    var zoom by rememberSaveable { mutableStateOf<String?>(null) }
+    zoom?.let { path ->
+        val item = items.firstOrNull { pack.path(it).path == path }
+        ZoomImageDialog(path, item?.caption.orEmpty()) { zoom = null }
+    }
+    Text(
+        heading,
+        style = MaterialTheme.typography.labelMedium,
+        color = Palette.Amber, fontWeight = FontWeight.Bold
+    )
+    Spacer(Modifier.height(6.dp))
+    items.forEach { item ->
+        val file = pack.path(item)
+        // Topos (fit) in voller Auflösung und ganz sichtbar — dort zählt jede Ziffer.
+        // Fotos halbiert und beschnitten, das reicht fürs Wiedererkennen.
+        val bmp = remember(file.path, fit) {
+            runCatching {
+                android.graphics.BitmapFactory.decodeFile(
+                    file.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = if (fit) 1 else 2 }
+                )?.asImageBitmap()
+            }.getOrNull()
+        }
+        bmp?.let {
+            Image(
+                bitmap = it,
+                contentDescription = item.caption,
+                contentScale = if (fit) ContentScale.Fit else ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (fit) 300.dp else 200.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(if (fit) androidx.compose.ui.graphics.Color.White else Palette.SurfaceHigh)
+                    .clickable { zoom = file.path }
+            )
+            if (item.caption.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(item.caption, style = MaterialTheme.typography.bodySmall, color = Palette.TextMid)
+            }
+            if (item.source.isNotBlank()) {
+                Text(
+                    "aus deinem Medienpaket · ${item.source.removePrefix("https://").removePrefix("www.").substringBefore("/")}",
+                    style = MaterialTheme.typography.labelSmall, color = Palette.TextLow
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun WebPhotosTab(route: FerrataRoute, enabled: Boolean, pack: MediaPack?) {
     val context = LocalContext.current
     val photos = FerrataMedia.photosFor(route.id)
     val gallery = FerrataMedia.galleries[route.id]
+    val local = pack?.forRoute(route.id)?.photos.orEmpty()
 
     fun open(url: String) {
         runCatching {
@@ -737,6 +799,17 @@ private fun WebPhotosTab(route: FerrataRoute, enabled: Boolean) {
     }
 
     Column {
+        if (local.isNotEmpty() && pack != null) {
+            PackImages(local, pack, "Aus deinem Medienpaket · ${local.size}")
+            if (photos.isNotEmpty() && enabled) {
+                Text(
+                    "Frei lizenziert auf Wikimedia Commons",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Palette.Sky, fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+            }
+        }
         when {
             !enabled -> Text(
                 "Das Nachladen von Fotos ist unter Mehr → Netz ausgeschaltet. " +
@@ -863,10 +936,11 @@ private fun OwnPhotosTab(route: FerrataRoute, extras: RouteExtras) {
  * Urheberwerk, deshalb gibt es sie nur als Link.
  */
 @Composable
-private fun TopoTab(route: FerrataRoute) {
+private fun TopoTab(route: FerrataRoute, pack: MediaPack?) {
     val context = LocalContext.current
     val segs = FerrataMedia.topoFor(route.id)
     val url = FerrataMedia.topoUrls[route.id]
+    val localTopos = pack?.forRoute(route.id)?.topos.orEmpty()
 
     fun gradeColor(g: FerrataGrade) = when (g) {
         FerrataGrade.A, FerrataGrade.B -> Palette.Emerald
@@ -876,6 +950,15 @@ private fun TopoTab(route: FerrataRoute) {
     }
 
     Column {
+        if (localTopos.isNotEmpty() && pack != null) {
+            PackImages(localTopos, pack, "Topo aus deinem Medienpaket · antippen zum Zoomen", fit = true)
+            Text(
+                "Schematischer Steigplan",
+                style = MaterialTheme.typography.labelMedium,
+                color = Palette.Sky, fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(8.dp))
+        }
         if (segs.isEmpty()) {
             Text(
                 "Für diesen Steig liegt noch keine Abschnittsfolge vor.",

@@ -3,6 +3,7 @@ package at.rudeboy.ferratafit.ui.screens
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import at.rudeboy.ferratafit.data.AppState
 import at.rudeboy.ferratafit.data.Backup
+import at.rudeboy.ferratafit.data.MediaPack
 import at.rudeboy.ferratafit.data.Profile
 import at.rudeboy.ferratafit.data.Station
 import at.rudeboy.ferratafit.health.HealthBridge
@@ -46,6 +48,9 @@ fun SettingsScreen(
     onSetHealthEnabled: (Boolean) -> Unit,
     onSetAutoWeight: (Boolean) -> Unit,
     onSetWebPhotos: (Boolean) -> Unit = {},
+    mediaPack: MediaPack? = null,
+    onImportMediaPack: (android.net.Uri) -> Unit = {},
+    onClearMediaPack: () -> Unit = {},
     onSetTravelMode: (Boolean) -> Unit,
     onSetReminder: (Boolean, Int?, Int?) -> Unit,
     onSetReminderSkip: (Boolean) -> Unit,
@@ -248,6 +253,49 @@ fun SettingsScreen(
                             checkedTrackColor = Palette.Sky
                         )
                     )
+                }
+            }
+        }
+
+        // ---------------- Medienpaket ----------------
+        item { SectionTitle("Medienpaket") }
+        item {
+            // Manche Dateimanager melden ZIPs als octet-stream — deshalb alles zulassen
+            // und erst beim Entpacken prüfen, ob es ein Paket ist.
+            val packPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument()
+            ) { uri -> uri?.let(onImportMediaPack) }
+
+            FfCard {
+                Text(
+                    "Eigene Fotos und Topos zu den Steigen, gebündelt als ZIP — etwa eine " +
+                        "Privatkopie der Tourenseiten oder Scans aus dem eigenen Führer. Was darin " +
+                        "liegt, bleibt auf diesem Gerät und erscheint im Foto- und Topo-Reiter " +
+                        "des jeweiligen Steigs.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Palette.TextMid
+                )
+                Spacer(Modifier.height(10.dp))
+                if (mediaPack != null) {
+                    Text(
+                        "Eingelesen: ${mediaPack.photoCount} Fotos, ${mediaPack.topoCount} Topos zu " +
+                            "${mediaPack.routes.size} Steigen" +
+                            if (mediaPack.created.isNotBlank()) " · Stand ${mediaPack.created}" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Palette.Emerald
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { packPicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text(if (mediaPack == null) "Paket einlesen" else "Anderes Paket") }
+                    if (mediaPack != null) {
+                        OutlinedButton(onClick = onClearMediaPack, modifier = Modifier.weight(1f)) {
+                            Text("Entfernen", color = Palette.Rose)
+                        }
+                    }
                 }
             }
         }

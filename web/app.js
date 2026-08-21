@@ -16,7 +16,7 @@ import { photosFor, topoFor, GALLERIES, TOPO_URLS } from './ferramedia.js';
 import * as PhotoDb from './photodb.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
-const APP_VERSION = '1.11';
+const APP_VERSION = '1.12';
 
 const DEFAULT_STATE = {
   profile: {

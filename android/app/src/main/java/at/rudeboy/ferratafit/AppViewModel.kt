@@ -8,6 +8,8 @@ import at.rudeboy.ferratafit.data.Catalog
 import at.rudeboy.ferratafit.data.Profile
 import at.rudeboy.ferratafit.data.ProgressionKind
 import at.rudeboy.ferratafit.data.Progression
+import at.rudeboy.ferratafit.data.LocalMedia
+import at.rudeboy.ferratafit.data.MediaPack
 import at.rudeboy.ferratafit.data.Recovery
 import at.rudeboy.ferratafit.data.RoutePhoto
 import at.rudeboy.ferratafit.data.TourLoad
@@ -589,6 +591,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setWebPhotos(enabled: Boolean) = updateProfile { it.copy(webPhotosEnabled = enabled) }
+
+    // ---------------- Medienpaket ----------------
+
+    /** Das eingelesene Medienpaket — null, wenn keines da ist. */
+    private val _mediaPack = MutableStateFlow(LocalMedia.load(app))
+    val mediaPack: StateFlow<MediaPack?> = _mediaPack.asStateFlow()
+
+    fun importMediaPack(uri: android.net.Uri) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            LocalMedia.importZip(getApplication(), uri)
+                .onSuccess { count ->
+                    _mediaPack.value = LocalMedia.load(getApplication())
+                    val p = _mediaPack.value
+                    notify(
+                        if (p == null) "Paket eingelesen, aber der Index passt zu keinem Steig."
+                        else "Medienpaket eingelesen: ${p.photoCount} Fotos und ${p.topoCount} Topos zu ${p.routes.size} Steigen."
+                    )
+                }
+                .onFailure { notify("Medienpaket nicht lesbar: ${it.message}", error = true) }
+        }
+    }
+
+    fun clearMediaPack() {
+        LocalMedia.clear(getApplication())
+        _mediaPack.value = null
+        notify("Medienpaket entfernt.")
+    }
 
     /**
      * Übernimmt ein gewähltes Foto in den App-Ordner — verkleinert.

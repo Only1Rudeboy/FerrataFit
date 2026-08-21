@@ -99,6 +99,7 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
     val editing by vm.editing.collectAsState()
     val resumeAsk by vm.resumeAsk.collectAsState()
     val tourCandidates by vm.tourCandidates.collectAsState()
+    val mediaPack by vm.mediaPack.collectAsState()
 
     val restEndsAt by vm.restEndsAt.collectAsState()
     val restTotal by vm.restTotal.collectAsState()
@@ -217,7 +218,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onTogglePlanned = { vm.togglePlannedRoute(it) },
                         onRemoveAscent = { vm.removeAscent(it) },
                         onAddRoutePhoto = { id, uri -> vm.addRoutePhoto(id, uri) },
-                        onRemoveRoutePhoto = { vm.removeRoutePhoto(it) }
+                        onRemoveRoutePhoto = { vm.removeRoutePhoto(it) },
+                        mediaPack = mediaPack
                     )
                     Tab.SETTINGS -> SettingsScreen(
                         state = state,
@@ -227,6 +229,9 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onSetHealthEnabled = { vm.setHealthEnabled(it) },
                         onSetAutoWeight = { vm.setAutoWeight(it) },
                         onSetWebPhotos = { vm.setWebPhotos(it) },
+                        mediaPack = mediaPack,
+                        onImportMediaPack = { vm.importMediaPack(it) },
+                        onClearMediaPack = { vm.clearMediaPack() },
                         onSetTravelMode = { vm.setTravelMode(it) },
                         onSetReminder = { on, h, m -> vm.setReminder(on, h, m) },
                         onSetReminderSkip = { vm.setReminderSkipIfDone(it) },
