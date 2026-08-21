@@ -215,7 +215,9 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         state = state,
                         onLogAscent = { logAscent = true },
                         onTogglePlanned = { vm.togglePlannedRoute(it) },
-                        onRemoveAscent = { vm.removeAscent(it) }
+                        onRemoveAscent = { vm.removeAscent(it) },
+                        onAddRoutePhoto = { id, uri -> vm.addRoutePhoto(id, uri) },
+                        onRemoveRoutePhoto = { vm.removeRoutePhoto(it) }
                     )
                     Tab.SETTINGS -> SettingsScreen(
                         state = state,
@@ -224,6 +226,7 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                         onToggleStation = { vm.toggleStation(it) },
                         onSetHealthEnabled = { vm.setHealthEnabled(it) },
                         onSetAutoWeight = { vm.setAutoWeight(it) },
+                        onSetWebPhotos = { vm.setWebPhotos(it) },
                         onSetTravelMode = { vm.setTravelMode(it) },
                         onSetReminder = { on, h, m -> vm.setReminder(on, h, m) },
                         onSetReminderSkip = { vm.setReminderSkipIfDone(it) },

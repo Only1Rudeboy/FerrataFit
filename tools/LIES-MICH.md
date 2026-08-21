@@ -8,6 +8,11 @@ stehen darin als Code mit Begründung, nicht als verlorene Chat-Prosa.
   `web/ferrageo.js` aus der Koordinaten-Recherche. Enthält die Handkorrektur
   für den Karhorn-Westgrat (eigener Einstieg am Westfuß).
 
+- `gen_media.py` + `photos-chunk*.json` + `topo-chunk*.json` — erzeugt
+  `data/FerrataMedia.kt` und `web/ferramedia.js`. Prüft jede Commons-Datei über die
+  API auf Existenz und freie Lizenz; nur CC0/CC BY/CC BY-SA/PD/FAL kommen durch.
+  Braucht Netz.
+
 Das Skript für den Routenkatalog (`FerrataRoutes.kt` / `web/ferratas.js`) ist mit
 dem Arbeitsordner der Sitzung verloren gegangen, in der es lief. Seine
 Entscheidungen sind dokumentiert: die Streichliste und alle Gradkorrekturen stehen

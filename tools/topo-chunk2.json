@@ -1,0 +1,118 @@
+{"routes":[
+{"id":"via-kessi","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/via-kessi-klettersteig/","segments":[
+{"label":"Einstiegswand, glatt, Trittstifte","grade":"C/D","kind":"wall"},
+{"label":"Querung nach rechts","grade":"C","kind":"traverse"},
+{"label":"Steil hinauf","grade":"D","kind":"wall"},
+{"label":"Rampe zur Schlüsselstelle","grade":"C","kind":"traverse"},
+{"label":"Überhang, Schlüsselstelle","grade":"D/E","kind":"overhang","crux":true},
+{"label":"Steilstufe","grade":"C/D","kind":"wall"},
+{"label":"Band zum Kessi-Loch","grade":"A/B","kind":"traverse"},
+{"label":"Kessi-Loch queren, senkrecht hinauf","grade":"C/D","kind":"wall"},
+{"label":"Bierzapfstelle, Steilstufe","grade":"C/D","kind":"wall"},
+{"label":"Rechtsquerung, Rampe, erdiger Ausstieg","grade":"B/C","kind":"traverse"}
+]},
+{"id":"via-orfla","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/via-oerfla-klettersteig/","segments":[
+{"label":"Bachquerung, durch den Felsspalt","grade":"A/B","kind":"gully"},
+{"label":"Erdig steil am Seil, Felsstufe","grade":"B/C","kind":"wall"},
+{"label":"Rampe, steil aufs Band","grade":"B/C","kind":"wall"},
+{"label":"Ausgesetzte Bandquerung","grade":"B","kind":"traverse"},
+{"label":"Kleine Rinne, kurze Stufe","grade":"B/C","kind":"gully"},
+{"label":"Ungesichert durchs Bachbett (UIAA 1)","grade":"A","kind":"walk"},
+{"label":"Querung zur überhängenden Kante","grade":"C","kind":"traverse"},
+{"label":"Schlusswand, 30 m, kurz D","grade":"C/D","kind":"wall","meters":30,"crux":true},
+{"label":"Leichte Stufe zum Wanderweg","grade":"A/B","kind":"walk"}
+]},
+{"id":"saulakopf","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/saulakopf-klettersteig/","segments":[
+{"label":"Plattenrampe unter dem Überhang","grade":"B","kind":"traverse"},
+{"label":"Überhängende Klammernreihe","grade":"D","kind":"overhang","crux":true},
+{"label":"Schräg links durch die Wand","grade":"C/D","kind":"wall"},
+{"label":"Panorama-Querung nach rechts","grade":"B","kind":"traverse"},
+{"label":"Steile Rinne","grade":"C","kind":"gully"},
+{"label":"Gestuftes Schrofengelände","grade":"B/C","kind":"walk"},
+{"label":"Notausstieg","grade":"B/C","kind":"exit"},
+{"label":"Leiterbrücke, umgehbar","grade":"C","kind":"bridge"},
+{"label":"Luftiger Spalt, Klammern","grade":"C/D","kind":"wall"},
+{"label":"Grat, zunehmend flacher","grade":"C","kind":"ridge"}
+]},
+{"id":"sulzfluh-sudwandsteig","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/sulzfluh-klettersteig/","segments":[
+{"label":"Platte, erste Leiter 5,5 m","grade":"B/C","kind":"ladder"},
+{"label":"Plattenwand, gestuftes Gelände","grade":"B/C","kind":"wall"},
+{"label":"Steilstufe","grade":"C/D","kind":"wall"},
+{"label":"Grat zum Bankli","grade":"B","kind":"ridge"},
+{"label":"Glatte Steilwand nach dem Bankli","grade":"C/D","kind":"wall","crux":true},
+{"label":"Querung, Steilstufe zur Brücke","grade":"B/C","kind":"wall"},
+{"label":"Dreiseilbrücke 6 m","grade":"B","kind":"bridge"},
+{"label":"Lange Klammerpassage","grade":"C/D","kind":"ladder"},
+{"label":"Luftige Stufen, Leiterbrücke 4 m","grade":"B/C","kind":"bridge"},
+{"label":"Letzte Steilstufe, flacher Ausstieg","grade":"B/C","kind":"wall"}
+]},
+{"id":"bruckenwand","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/valkastiel-ruine-klettersteig/","segments":[
+{"label":"Schluchtweg, Rampenriss","grade":"B","kind":"gully","meters":20},
+{"label":"Abzweig rechts, kleiner Überhang","grade":"D","kind":"overhang","crux":true},
+{"label":"Senkrechte Wand","grade":"D","kind":"wall"},
+{"label":"Kleiner Überhang am Ende","grade":"D","kind":"overhang"},
+{"label":"Seilbrücke 13 m (Variante)","grade":"D","kind":"bridge"},
+{"label":"Felsgrat zum Sattel, Ausstieg","grade":"D","kind":"ridge"}
+]},
+{"id":"fenster","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/valkastiel-ruine-klettersteig/","segments":[
+{"label":"Grasige Verschneidung","grade":"C","kind":"gully"},
+{"label":"Schräges Grasband zur Schlucht","grade":"C","kind":"traverse"},
+{"label":"Rechte Felsseite zum Fenster","grade":"C","kind":"wall"},
+{"label":"Durchs Felsenfenster","grade":"C","kind":"cave"},
+{"label":"Luftige Linksquerung über dem Tobel","grade":"C","kind":"traverse"},
+{"label":"Gesicherter Pfad zum Felssattel","grade":"C","kind":"walk"}
+]},
+{"id":"gauablickhohle","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/klettersteig-gauablickhoehle/","segments":[
+{"label":"Platten und Rampe","grade":"A/B","kind":"wall"},
+{"label":"Steiler Pfeiler","grade":"B","kind":"wall"},
+{"label":"Linksquerung zur Höhle","grade":"A","kind":"traverse"},
+{"label":"Gauablickhöhle, 350 m, Stirnlampe","grade":"A/B","kind":"cave"},
+{"label":"Rechtsquerung, Pfeiler","grade":"B","kind":"wall"},
+{"label":"Leichter Abschnitt, Stufe","grade":"B","kind":"walk"},
+{"label":"Kleiner Überhang, Schlüsselstelle","grade":"C","kind":"overhang","crux":true},
+{"label":"Notausstieg","grade":"B","kind":"exit"},
+{"label":"Rampe, Stufe zum Schuttkessel","grade":"A/B","kind":"walk"},
+{"label":"Steile Stufen zum Ausstieg","grade":"B/C","kind":"wall"}
+]},
+{"id":"hohe-wand","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/valkastiel-ruine-klettersteig/","segments":[
+{"label":"Bügelreihe senkrecht am Stauwehr","grade":"C","kind":"ladder"},
+{"label":"Rechts unter Felsabsatz, Verschneidung","grade":"C","kind":"wall"},
+{"label":"Glatte Wand, schräger Riss rechts","grade":"C","kind":"wall"},
+{"label":"Erdiges Band, alter Eispickel","grade":"C","kind":"traverse"},
+{"label":"Schräger Felsriss hoch","grade":"C","kind":"wall"},
+{"label":"Bügelreihen zur Felskante","grade":"C","kind":"ladder"},
+{"label":"Seilbrücke 7 m","grade":"C","kind":"bridge"},
+{"label":"Zweite Seilbrücke","grade":"C","kind":"bridge"},
+{"label":"Zum Felssattel, Ausstieg","grade":"C","kind":"walk"}
+]},
+{"id":"blodigrinne-drusenfluh","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/blodigrinne-klettersteig/","segments":[
+{"label":"Felsstufe, Schutthalde, Gehgelände","grade":"A","kind":"walk"},
+{"label":"Variante links: Klammern, überhängend","grade":"D","kind":"wall","crux":true},
+{"label":"Variante rechts: Klammerleiter","grade":"B/C","kind":"ladder"},
+{"label":"Plattenkante, Reibung","grade":"B","kind":"wall"},
+{"label":"Schutthalde, Steinmänner","grade":"A","kind":"walk"},
+{"label":"Leichte Querung","grade":"A/B","kind":"traverse"},
+{"label":"Kamin am Gipfelaufschwung","grade":"C","kind":"gully"},
+{"label":"Ungesichert zum Gipfel, UIAA 2-","grade":"B","kind":"ridge"}
+]},
+{"id":"rongg-wasserfall","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/rongg-wasserfall-klettersteig/","segments":[
+{"label":"Holzbrücken, Einstiegswand","grade":"A/B","kind":"wall"},
+{"label":"Zweiseilbrücke über den Bach","grade":"B","kind":"bridge"},
+{"label":"Bandquerung über dem Bach","grade":"B","kind":"traverse"},
+{"label":"Notausstieg","grade":"B","kind":"exit"},
+{"label":"Entlang des Bachs","grade":"B","kind":"traverse"},
+{"label":"Anfangs überhängende Wand, 15 m","grade":"C","kind":"overhang","meters":15,"crux":true},
+{"label":"Steil neben dem Wasserfall, Nische","grade":"B/C","kind":"wall"},
+{"label":"Gestuftes Gelände zum Ausstieg","grade":"B","kind":"walk"}
+]},
+{"id":"madrisella","topoUrl":"https://www.bergsteigen.com/touren/klettersteig/madrisella-klettersteig/","segments":[
+{"label":"Senkrechte Einstiegswand, Klammern","grade":"C","kind":"wall"},
+{"label":"Luftige Querung zur Rastbank","grade":"B/C","kind":"traverse"},
+{"label":"Leisten, Platten, Kante, Linksquerung","grade":"B/C","kind":"wall"},
+{"label":"Steilwand zur erdigen Schulter","grade":"C/D","kind":"wall"},
+{"label":"Große Wand, 150 m, senkrecht","grade":"C/D","kind":"wall","meters":150,"crux":true},
+{"label":"Grat mit Rastbank, Pfeilerstufen","grade":"C","kind":"ridge"},
+{"label":"Sehr luftige Querung","grade":"B/C","kind":"traverse"},
+{"label":"Letzte Meter zum Sattel","grade":"B","kind":"wall"}
+]}
+]}

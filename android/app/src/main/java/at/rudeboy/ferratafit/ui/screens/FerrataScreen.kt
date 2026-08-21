@@ -44,8 +44,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.ui.platform.LocalContext
+import at.rudeboy.ferratafit.data.FerrataMedia
+import at.rudeboy.ferratafit.ui.RemoteImage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.asImageBitmap
@@ -89,8 +95,16 @@ fun FerrataScreen(
     state: AppState,
     onLogAscent: () -> Unit,
     onTogglePlanned: (String) -> Unit,
-    onRemoveAscent: (String) -> Unit = {}
+    onRemoveAscent: (String) -> Unit = {},
+    onAddRoutePhoto: (String, android.net.Uri) -> Unit = { _, _ -> },
+    onRemoveRoutePhoto: (String) -> Unit = {}
 ) {
+    fun extrasFor(routeId: String) = RouteExtras(
+        ownPhotos = ownPhotosFor(state, routeId),
+        webPhotosEnabled = state.profile.webPhotosEnabled,
+        onAddPhoto = onAddRoutePhoto,
+        onRemovePhoto = onRemoveRoutePhoto
+    )
     val now = System.currentTimeMillis()
     val readiness = Stats.ferrataReadiness(state.sessions, now)
     val pass = remember(state.ascents, readiness) {
@@ -204,7 +218,8 @@ fun FerrataScreen(
                             planned = id in state.plannedRouteIds,
                             expanded = true,
                             onToggle = { openId = null },
-                            onPlan = { onTogglePlanned(id) }
+                            onPlan = { onTogglePlanned(id) },
+                            extras = extrasFor(id)
                         )
                     }
                 }
@@ -226,7 +241,8 @@ fun FerrataScreen(
                         planned = route.id in state.plannedRouteIds,
                         expanded = openId == route.id,
                         onToggle = { openId = if (openId == route.id) null else route.id },
-                        onPlan = { onTogglePlanned(route.id) }
+                        onPlan = { onTogglePlanned(route.id) },
+                        extras = extrasFor(route.id)
                     )
                 }
             }
@@ -277,7 +293,8 @@ fun FerrataScreen(
                         planned = route.id in state.plannedRouteIds,
                         expanded = openId == route.id,
                         onToggle = { openId = if (openId == route.id) null else route.id },
-                        onPlan = { onTogglePlanned(route.id) }
+                        onPlan = { onTogglePlanned(route.id) },
+                        extras = extrasFor(route.id)
                     )
                 }
             }
@@ -525,6 +542,21 @@ private fun FitHeader(fit: Fit, count: Int) {
     }
 }
 
+/** Was die Routenkarte über die Anzeige hinaus braucht — eigene Fotos und ihre Aktionen. */
+data class RouteExtras(
+    val ownPhotos: List<Pair<String, String?>> = emptyList(),
+    val webPhotosEnabled: Boolean = true,
+    val onAddPhoto: (String, android.net.Uri) -> Unit = { _, _ -> },
+    val onRemovePhoto: (String) -> Unit = {}
+)
+
+private fun ownPhotosFor(state: AppState, routeId: String): List<Pair<String, String?>> =
+    // Fotos aus Begehungen dieser Route (nicht löschbar von hier — sie gehören zur
+    // Begehung) und direkt angehängte Fotos (löschbar, mit Kennung)
+    state.ascents.filter { it.routeId == routeId && it.photoPath.isNotBlank() }
+        .map { it.photoPath to null } +
+        state.routePhotos.filter { it.routeId == routeId }.map { it.path to it.id }
+
 @Composable
 private fun RouteCard(
     route: FerrataRoute,
@@ -532,7 +564,8 @@ private fun RouteCard(
     planned: Boolean,
     expanded: Boolean,
     onToggle: () -> Unit,
-    onPlan: () -> Unit
+    onPlan: () -> Unit,
+    extras: RouteExtras = RouteExtras()
 ) {
     FfCard(accent = if (expanded) fitColor(fit) else null, onClick = onToggle) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -578,9 +611,33 @@ private fun RouteCard(
         }
 
         AnimatedVisibility(expanded) {
+            var tab by rememberSaveable(route.id) { mutableStateOf(0) }
             Column {
                 Spacer(Modifier.height(13.dp))
 
+                // Vier Reiter: die Beschreibung, Fotos aus dem Netz, eigene Fotos, Topo.
+                // Die Zahl hinter „Fotos" verrät vorab, ob sich der Tipp lohnt.
+                val webCount = FerrataMedia.photosFor(route.id).size
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        "Info",
+                        if (webCount > 0) "Fotos · $webCount" else "Fotos",
+                        if (extras.ownPhotos.isNotEmpty()) "Eigene · ${extras.ownPhotos.size}" else "Eigene",
+                        "Topo"
+                    ).forEachIndexed { i, label ->
+                        FilterChip(label, tab == i) { tab = i }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+
+                when (tab) {
+                    1 -> WebPhotosTab(route, extras.webPhotosEnabled)
+                    2 -> OwnPhotosTab(route, extras)
+                    3 -> TopoTab(route)
+                    else -> Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (route.crux.isNotBlank()) {
                         Pill("Schlüsselstelle ${route.crux}", Palette.Rose)
@@ -650,6 +707,279 @@ private fun RouteCard(
                         style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
                     )
                 }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Fotos von Wikimedia Commons — geladen, wenn der Reiter aufgeht, nicht vorher.
+ *
+ * Jedes Bild nennt Urheber und Lizenz: Das ist die Bedingung der freien Lizenzen und
+ * der Grund, warum diese Fotos in einer öffentlichen App überhaupt gezeigt werden
+ * dürfen. Dazu der Link zur Galerie des Tourenportals — dort liegen die Fotos, die
+ * die App aus Rechtsgründen nicht einbinden kann.
+ */
+@Composable
+private fun WebPhotosTab(route: FerrataRoute, enabled: Boolean) {
+    val context = LocalContext.current
+    val photos = FerrataMedia.photosFor(route.id)
+    val gallery = FerrataMedia.galleries[route.id]
+
+    fun open(url: String) {
+        runCatching {
+            context.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+            )
+        }
+    }
+
+    Column {
+        when {
+            !enabled -> Text(
+                "Das Nachladen von Fotos ist unter Mehr → Netz ausgeschaltet. " +
+                    "Die App lädt dann nichts aus dem Internet.",
+                style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+            )
+            photos.isEmpty() -> Text(
+                "Für diesen Steig gibt es auf Wikimedia Commons kein frei lizenziertes Foto. " +
+                    "Fremde Fotos aus dem Netz nimmt die App bewusst nicht auf — Urheberrecht.",
+                style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+            )
+            else -> photos.forEach { p ->
+                RemoteImage(
+                    url = p.url,
+                    contentDescription = p.shows,
+                    modifier = Modifier.clip(RoundedCornerShape(13.dp)),
+                    height = 200.dp
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(p.shows, style = MaterialTheme.typography.bodySmall, color = Palette.TextMid)
+                Text(
+                    "${p.author} · ${p.license} · Wikimedia Commons",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Palette.Sky,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable { open(p.pageUrl) }
+                        .padding(vertical = 3.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+
+        gallery?.let { url ->
+            Spacer(Modifier.height(4.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(Palette.SurfaceHigh)
+                    .clickable { open(url) }
+                    .padding(13.dp)
+            ) {
+                Text(
+                    "Weitere Fotos auf ${url.removePrefix("https://").removePrefix("www.").substringBefore("/")} ↗",
+                    style = MaterialTheme.typography.bodyMedium, color = Palette.Sky
+                )
+            }
+        }
+    }
+}
+
+/** Eigene Fotos: aus Begehungen dieser Route und direkt angehängte. */
+@Composable
+private fun OwnPhotosTab(route: FerrataRoute, extras: RouteExtras) {
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let { extras.onAddPhoto(route.id, it) } }
+
+    Column {
+        if (extras.ownPhotos.isEmpty()) {
+            Text(
+                "Noch kein eigenes Bild. Fotos aus einer Begehung erscheinen hier von selbst — " +
+                    "oder du hängst direkt eines an den Steig.",
+                style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        extras.ownPhotos.forEach { (path, id) ->
+            val bmp = remember(path) {
+                runCatching {
+                    android.graphics.BitmapFactory.decodeFile(
+                        path, android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
+                    )?.asImageBitmap()
+                }.getOrNull()
+            }
+            bmp?.let {
+                Image(
+                    bitmap = it,
+                    contentDescription = "Eigenes Foto: ${route.name}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (id == null) "aus einer Begehung" else "direkt angehängt",
+                        style = MaterialTheme.typography.labelSmall, color = Palette.TextLow,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (id != null) {
+                        TextButton(onClick = { extras.onRemovePhoto(id) }) {
+                            Text("entfernen", color = Palette.TextLow, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(Palette.SurfaceHigh)
+                .clickable {
+                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("📷  Foto hinzufügen", color = Palette.TextMid)
+        }
+    }
+}
+
+/**
+ * Die schematische Topo: vom Einstieg unten zum Ausstieg oben.
+ *
+ * Gezeichnet aus den Abschnitten, die die Recherche aus den Tourenbeschreibungen
+ * gezogen hat — Reihenfolge, Art, Grad. Das sind Fakten und damit frei; die
+ * Zeichnung ist unsere. Eine gezeichnete Original-Topo von bergsteigen.com ist
+ * Urheberwerk, deshalb gibt es sie nur als Link.
+ */
+@Composable
+private fun TopoTab(route: FerrataRoute) {
+    val context = LocalContext.current
+    val segs = FerrataMedia.topoFor(route.id)
+    val url = FerrataMedia.topoUrls[route.id]
+
+    fun gradeColor(g: FerrataGrade) = when (g) {
+        FerrataGrade.A, FerrataGrade.B -> Palette.Emerald
+        FerrataGrade.C -> Palette.Sky
+        FerrataGrade.D -> Palette.Amber
+        else -> Palette.Rose
+    }
+
+    Column {
+        if (segs.isEmpty()) {
+            Text(
+                "Für diesen Steig liegt noch keine Abschnittsfolge vor.",
+                style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+            )
+        } else {
+            // Ohne Einstiegshöhe im Katalog wäre „Ausstieg · 60 m" eine Seehöhe, die keine
+            // ist — dann lieber die Klettermeter als das, was sie sind.
+            val topLabel = when {
+                route.startAlt > 0 -> " · ${maxOf(route.summitAlt, route.startAlt + route.climbMeters)} m"
+                route.climbMeters > 0 -> " · +${route.climbMeters} Hm"
+                else -> ""
+            }
+            Text(
+                "▲ Ausstieg$topLabel",
+                style = MaterialTheme.typography.labelMedium, color = Palette.TextLow,
+                modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+            )
+            // Von oben nach unten gelesen ist der letzte Abschnitt der oberste —
+            // wie auf einer Topo, die man vor der Wand in der Hand hält.
+            segs.reversed().forEachIndexed { i, seg ->
+                val color = if (seg.kind == "exit") Palette.TextLow else gradeColor(seg.gradeEnum)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Die durchgehende Linie: jeder Abschnitt trägt sein Stück in seiner Farbe
+                    Box(
+                        Modifier
+                            .width(8.dp)
+                            .height(if (seg.kind == "exit") 30.dp else 46.dp)
+                            .background(color.copy(alpha = if (seg.kind == "exit") 0.35f else 0.85f))
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Box(
+                        Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(
+                                if (seg.crux) Palette.Rose.copy(alpha = 0.18f)
+                                else color.copy(alpha = 0.14f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if (seg.kind == "exit") "🚪" else seg.grade,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (seg.crux) Palette.Rose else color,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "${seg.icon} ${seg.label}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (seg.kind == "exit") Palette.TextLow else Palette.TextHigh
+                        )
+                        val sub = buildList {
+                            if (seg.crux) add("Schlüsselstelle")
+                            if (seg.meters > 0) add("${seg.meters} Hm")
+                            if (seg.kind == "exit") add("Notausstieg")
+                        }
+                        if (sub.isNotEmpty()) {
+                            Text(
+                                sub.joinToString(" · "),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (seg.crux) Palette.Rose else Palette.TextLow
+                            )
+                        }
+                    }
+                }
+            }
+            Text(
+                "▼ Einstieg" + if (route.startAlt > 0) " · ${route.startAlt} m" else "",
+                style = MaterialTheme.typography.labelMedium, color = Palette.TextLow,
+                modifier = Modifier.padding(start = 2.dp, top = 6.dp)
+            )
+
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Schematisch, aus den Tourenbeschreibungen abgeleitet — Reihenfolge und Grade " +
+                    "der Abschnitte, nicht ihre Länge. Am Einstieg zählt die Tafel vor Ort.",
+                style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+            )
+        }
+
+        url?.let { u ->
+            Spacer(Modifier.height(10.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(Palette.SurfaceHigh)
+                    .clickable {
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(u))
+                            )
+                        }
+                    }
+                    .padding(13.dp)
+            ) {
+                Text(
+                    "Gezeichnete Topo auf ${u.removePrefix("https://").removePrefix("www.").substringBefore("/")} ↗",
+                    style = MaterialTheme.typography.bodyMedium, color = Palette.Sky
+                )
             }
         }
     }

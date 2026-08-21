@@ -9,6 +9,7 @@ import at.rudeboy.ferratafit.data.Profile
 import at.rudeboy.ferratafit.data.ProgressionKind
 import at.rudeboy.ferratafit.data.Progression
 import at.rudeboy.ferratafit.data.Recovery
+import at.rudeboy.ferratafit.data.RoutePhoto
 import at.rudeboy.ferratafit.data.TourLoad
 import at.rudeboy.ferratafit.health.OutdoorSession
 import at.rudeboy.ferratafit.data.Session
@@ -567,6 +568,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Das Foto gehört zur Begehung — ohne sie ist es eine Karteileiche im App-Ordner
         gone?.photoPath?.takeIf { it.isNotBlank() }?.let { runCatching { java.io.File(it).delete() } }
     }
+
+    /** Ein eigenes Foto direkt an einen Steig hängen — ohne Begehung. */
+    fun addRoutePhoto(routeId: String, uri: android.net.Uri) {
+        val path = importPhoto(uri)
+        if (path == null) {
+            notify("Das Bild ließ sich nicht übernehmen.", error = true)
+            return
+        }
+        val now = System.currentTimeMillis()
+        store.update { s ->
+            s.copy(routePhotos = s.routePhotos + RoutePhoto("P$now", routeId, path, now))
+        }
+    }
+
+    fun removeRoutePhoto(id: String) {
+        val gone = state.value.routePhotos.firstOrNull { it.id == id } ?: return
+        store.update { s -> s.copy(routePhotos = s.routePhotos.filterNot { it.id == id }) }
+        runCatching { java.io.File(gone.path).delete() }
+    }
+
+    fun setWebPhotos(enabled: Boolean) = updateProfile { it.copy(webPhotosEnabled = enabled) }
 
     /**
      * Übernimmt ein gewähltes Foto in den App-Ordner — verkleinert.

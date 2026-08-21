@@ -145,7 +145,22 @@ data class Profile(
     val reminderHour: Int = 18,
     val reminderMinute: Int = 0,
     /** Nicht erinnern, wenn heute schon eine Etappe abgehakt wurde. */
-    val reminderSkipIfDone: Boolean = true
+    val reminderSkipIfDone: Boolean = true,
+    /**
+     * Frei lizenzierte Fotos von Wikimedia Commons zu den Steigen nachladen.
+     * Der einzige Netzzugriff der App neben der Aktualisierung — deshalb abschaltbar.
+     * Geladen wird nur, wenn der Foto-Reiter eines Steigs tatsächlich geöffnet wird.
+     */
+    val webPhotosEnabled: Boolean = true
+)
+
+/** Ein eigenes Foto, das direkt an einen Steig gehängt wurde — ohne Begehung. */
+@Serializable
+data class RoutePhoto(
+    val id: String,
+    val routeId: String,
+    val path: String,
+    val addedAt: Long
 )
 
 /** Ein Trainingstag im Split. */
@@ -182,5 +197,7 @@ data class AppState(
     /** Routen, die als Ziel vorgemerkt wurden. */
     val plannedRouteIds: Set<String> = emptySet(),
     /** Wann zuletzt automatisch nach Documents gesichert wurde. */
-    val lastBackupAt: Long = 0L
+    val lastBackupAt: Long = 0L,
+    /** Eigene Fotos, die direkt an Steigen hängen. */
+    val routePhotos: List<RoutePhoto> = emptyList()
 )

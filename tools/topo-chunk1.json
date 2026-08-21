@@ -1,0 +1,89 @@
+{"routes":[
+{"id":"karhorn-westgrat-panorama","segments":[
+{"label":"Steiler Abstieg vom Gipfel","grade":"A/B","kind":"ridge"},
+{"label":"Abwechslungsreicher Grat","grade":"B/C","kind":"ridge"},
+{"label":"Mehrere Abschwünge","grade":"B/C","kind":"wall"},
+{"label":"Abstieg in die Scharte","grade":"C/D","kind":"wall","crux":true},
+{"label":"Luftiger Grat, leicht ansteigend","grade":"B/C","kind":"ridge"},
+{"label":"Zwei Mini-Seilbrücken","grade":"B/C","kind":"bridge"},
+{"label":"Steiler Abstieg in zweite Scharte","grade":"C/D","kind":"wall"},
+{"label":"Lange Ausstiegsplatte, seilversichert","grade":"A/B","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/panorama-klettersteig-karhorn/"},
+{"id":"wasserfall-st-anton-im-montafon","segments":[
+{"label":"Waldsteig zum unteren Wasserfall","grade":"A","kind":"walk"},
+{"label":"Leiter neben dem Wasserfall","grade":"B","kind":"ladder"},
+{"label":"Grat zur Steilwand","grade":"A/B","kind":"ridge"},
+{"label":"Steile Wand","grade":"C","kind":"wall"},
+{"label":"Seilbrücke 30 m","grade":"B","kind":"bridge"},
+{"label":"Überhängende Wand","grade":"C/D","kind":"overhang","crux":true},
+{"label":"Zweite Seilbrücke 30 m","grade":"B","kind":"bridge"},
+{"label":"Feuchte Wand zurück zum Grat","grade":"C/D","kind":"wall"},
+{"label":"Steilstufe und Querung","grade":"B/C","kind":"traverse"},
+{"label":"Schlusswand zum Ausstieg","grade":"C","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/wasserfall-klettersteig-st-anton-im-montafon/"},
+{"id":"ubungs-klettergarten-latschau","segments":[
+{"label":"Einstieg links","grade":"A/B","kind":"wall"},
+{"label":"Querung nach rechts","grade":"A/B","kind":"traverse"},
+{"label":"Zwei kleine Seilbrücken","grade":"A/B","kind":"bridge"},
+{"label":"Platten im rechten Teil","grade":"B/C","kind":"wall","crux":true},
+{"label":"Ausstieg nach oben","grade":"A/B","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/latschau-klettersteig/"},
+{"id":"ubungs-rifa","segments":[
+{"label":"Einstiegswand","grade":"A/B","kind":"wall"},
+{"label":"Schwere Varianten","grade":"C/D","kind":"wall","crux":true},
+{"label":"Ausgesetzte Quergänge","grade":"A/B","kind":"traverse"},
+{"label":"Hängebrücke","grade":"A/B","kind":"bridge"},
+{"label":"Abstiegsvariante","grade":"A/B","kind":"wall"}
+],"topoUrl":"https://klettersteig.de/klettersteig/rifa_klettersteig/1762"},
+{"id":"burg","segments":[
+{"label":"Bügel am Felsblock zum Nordkopf","grade":"A/B","kind":"ladder"},
+{"label":"Grat zur Mittelspitze","grade":"A/B","kind":"ridge"},
+{"label":"Felsblock, unten umgehbar","grade":"B/C","kind":"wall","crux":true},
+{"label":"Bügelreihe abwärts in Scharte","grade":"A/B","kind":"ladder"},
+{"label":"Grat zur Südspitze","grade":"A/B","kind":"ridge"},
+{"label":"Gipfel Burg","grade":"A/B","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/burg-klettersteig/"},
+{"id":"kalbersee-variante-b","segments":[
+{"label":"Zwei Einstiege","grade":"B","kind":"wall"},
+{"label":"Bügelwand nach Zusammenschluss","grade":"B","kind":"ladder"},
+{"label":"Auffächerung in Wandmitte","grade":"B","kind":"wall"},
+{"label":"Luftige Tritte um den Felskopf","grade":"B","kind":"traverse","crux":true}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/klettersteig-kaelbersee/"},
+{"id":"kalbersee-variante-c-kantenferrata","segments":[
+{"label":"Einstieg rechte Linie","grade":"C","kind":"wall"},
+{"label":"Luftige Felskante","grade":"C","kind":"ridge","crux":true},
+{"label":"Ausstieg","grade":"C","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/klettersteig-kaelbersee/"},
+{"id":"kalbersee-variante-d","segments":[
+{"label":"Einstieg mittlere Linie","grade":"D","kind":"wall"},
+{"label":"Steile Wand ohne Bügel","grade":"D","kind":"overhang","crux":true},
+{"label":"Ausstieg","grade":"D","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/klettersteig-kaelbersee/"},
+{"id":"kaenzele-rechte-variante","segments":[
+{"label":"Sandsteinplatte zur Leiter","grade":"B/C","kind":"ladder"},
+{"label":"Wandstufen bis zur Verzweigung","grade":"C","kind":"wall"},
+{"label":"Steile Passage","grade":"C/D","kind":"wall"},
+{"label":"Steile Passage","grade":"D","kind":"wall"},
+{"label":"Überhang mit Klammern","grade":"D/E","kind":"overhang","crux":true},
+{"label":"Senkrechte Passage nach Vereinigung","grade":"C/D","kind":"wall"},
+{"label":"Ansteigende Querung zum Ausstieg","grade":"C/D","kind":"traverse"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/kaenzele-klettersteig/"},
+{"id":"kanzele","segments":[
+{"label":"Sandsteinplatte zur Leiter","grade":"B/C","kind":"ladder"},
+{"label":"Wandstufen bis zur Verzweigung","grade":"C","kind":"wall"},
+{"label":"Mittlere Linie, steil auf Rampe","grade":"C","kind":"wall","crux":true},
+{"label":"Senkrechte Passage nach Vereinigung","grade":"C","kind":"wall"},
+{"label":"Ansteigende Querung im Nagelfluh","grade":"C","kind":"traverse"},
+{"label":"Schlussquerung zum Ausstieg","grade":"C","kind":"traverse"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/kaenzele-klettersteig/"},
+{"id":"via-kapf","segments":[
+{"label":"Überhängende Einstiegswand","grade":"D/E","kind":"overhang","crux":true},
+{"label":"Gut gesicherte Wand","grade":"C/D","kind":"wall"},
+{"label":"Bänder mit Steilstufen","grade":"C","kind":"traverse"},
+{"label":"Breites Band zum Tourenbuch","grade":"B","kind":"traverse"},
+{"label":"Notausstieg nach rechts","grade":"A","kind":"exit"},
+{"label":"Senkrechte Wand mit Stiften","grade":"D","kind":"wall"},
+{"label":"Luftig um die Kapf-Kante","grade":"D/E","kind":"traverse"},
+{"label":"Ausstiegsverschneidung","grade":"D/E","kind":"gully"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/via-kapf-klettersteig/"}
+]}

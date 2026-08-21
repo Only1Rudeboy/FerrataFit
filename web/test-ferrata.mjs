@@ -111,6 +111,33 @@ ok('ohne Zeiten: Drittel', F.daySegments(0, 0, 0).every((f) => Math.abs(f - 1 / 
 ok('Mini-Zustieg bleibt sichtbar', F.daySegments(5, 300, 60)[0] >= 0.1,
   `war ${F.daySegments(5, 300, 60)[0]}`);
 
+console.log('\nFotos und Topos');
+const { WEB_PHOTOS, TOPOS, photosFor, topoFor } = await import('./ferramedia.js');
+const frei = /^(CC0|CC BY(-SA)?( [0-9.]+)?( [a-z]{2})?|Public domain|PD|FAL|Copyrighted free use)/i;
+const allePhotos = Object.values(WEB_PHOTOS).flat();
+ok('jedes Foto ist frei lizenziert', allePhotos.every((p) => frei.test(p.license)),
+  allePhotos.filter((p) => !frei.test(p.license)).map((p) => p.file + ': ' + p.license).join(', '));
+ok('jedes Foto nennt Urheber und Commons-Seite',
+  allePhotos.every((p) => p.author && p.pageUrl.startsWith('https://commons.wikimedia.org/')));
+ok('jedes Foto lädt von Wikimedia', allePhotos.every((p) => p.url.startsWith('https://upload.wikimedia.org/')));
+ok('fast jeder Steig hat Fotos', FERRATAS.filter((r) => !photosFor(r.id).length).length <= 2,
+  FERRATAS.filter((r) => !photosFor(r.id).length).map((r) => r.name).join(', '));
+ok('jeder Steig hat eine Topo mit mindestens 3 Abschnitten', FERRATAS.every((r) => topoFor(r.id).length >= 3),
+  FERRATAS.filter((r) => topoFor(r.id).length < 3).map((r) => r.name).join(', '));
+const kinds = new Set(['wall', 'traverse', 'ladder', 'bridge', 'ridge', 'gully', 'cave', 'overhang', 'walk', 'exit']);
+ok('Topo-Abschnitte sind wohlgeformt', Object.values(TOPOS).flat().every((s) =>
+  kinds.has(s.kind) && F.gradeIndex(s.grade) >= 0 && s.label.length <= 40));
+ok('höchstens eine Schlüsselstelle je Topo', Object.values(TOPOS).every((segs) => segs.filter((s) => s.crux).length <= 1));
+
+// Gleichlauf: dieselben Zahlen wie in FerrataMedia.kt
+const mediaKt = readFileSync(join(HERE, '..', 'android', 'app', 'src', 'main', 'java', 'at',
+  'rudeboy', 'ferratafit', 'data', 'FerrataMedia.kt'), 'utf8');
+ok('gleiche Fotoanzahl wie Android', (mediaKt.match(/WebPhoto\(/g) || []).length === allePhotos.length,
+  `Web ${allePhotos.length}, Android ${(mediaKt.match(/WebPhoto\(/g) || []).length}`);
+ok('gleiche Abschnittsanzahl wie Android',
+  (mediaKt.match(/TopoSegment\(/g) || []).length === Object.values(TOPOS).flat().length,
+  `Web ${Object.values(TOPOS).flat().length}, Android ${(mediaKt.match(/TopoSegment\(/g) || []).length}`);
+
 console.log('\nKartendaten');
 const { GEO_POINTS, GEO_OUTLINE, GEO_BOUNDS, GEO_LANDMARKS } = await import('./ferrageo.js');
 ok('jeder Steig hat genau einen Punkt',

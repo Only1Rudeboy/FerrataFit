@@ -1,0 +1,95 @@
+{"routes":[
+{"id":"pfeilerwand","segments":[
+{"label":"Einstiegswand am Pfeiler","grade":"D","kind":"wall"},
+{"label":"Überhänge mit filigranen Bügeln","grade":"D","kind":"overhang","crux":true},
+{"label":"Steile Kanten und Platten","grade":"D","kind":"wall"},
+{"label":"Ausstieg zur Ruine","grade":"D","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/valkastiel-ruine-klettersteig/"},
+{"id":"robischlucht-gargellner","segments":[
+{"label":"Kurze Plattenstelle","grade":"A/B","kind":"wall"},
+{"label":"Gehgelände, erste Bachquerung","grade":"A","kind":"walk"},
+{"label":"Über dem Bach in die Schlucht","grade":"A/B","kind":"gully"},
+{"label":"Glatte Schluchtwand","grade":"B/C","kind":"wall","crux":true},
+{"label":"Bachquerung","grade":"B","kind":"traverse"},
+{"label":"Bachquerung im Gehgelände","grade":"A","kind":"walk"},
+{"label":"Ansteigend der Wand entlang","grade":"B","kind":"traverse"},
+{"label":"Enger Durchschlupf unter Baum","grade":"B/C","kind":"cave"},
+{"label":"Plattige Schlusswand, Eisentritte","grade":"B/C","kind":"wall","meters":8},
+{"label":"Gestuft zum Ausstieg","grade":"B","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/roebischlucht-klettersteig/"},
+{"id":"schlosswand-schluchtweg-uberschrei","segments":[
+{"label":"Schlosswand","grade":"B/C","kind":"wall","crux":true},
+{"label":"Überschreitung der Burgruine","grade":"B/C","kind":"ridge"},
+{"label":"Schluchtweg, oft feuchte Rinnen","grade":"B/C","kind":"gully"},
+{"label":"Ausstieg (auch Abstiegsweg)","grade":"B/C","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/valkastiel-ruine-klettersteig/"},
+{"id":"vaude-gargellner-kopfe-schmugglers","segments":[
+{"label":"Schräger Einstiegsgrat","grade":"B/C","kind":"ridge"},
+{"label":"Steilstufe","grade":"C","kind":"wall"},
+{"label":"Hinweistafel, Notabstieg links","grade":"B","kind":"exit"},
+{"label":"Platten rechts, Seilbrücke 19 m","grade":"B","kind":"bridge"},
+{"label":"Kurzer Grat, Seilbrücke 23 m","grade":"B","kind":"bridge"},
+{"label":"Schmugglerwand, leicht überhängend","grade":"C/D","kind":"overhang","meters":20,"crux":true},
+{"label":"Plattengrat mit kurzer Stufe","grade":"B/C","kind":"ridge"},
+{"label":"Gratkletterei, Varianten vereint","grade":"A/B","kind":"ridge"},
+{"label":"Kristallwand mit Klammern","grade":"B/C","kind":"ladder","meters":12},
+{"label":"Leichter Grat zum Gipfel","grade":"A","kind":"ridge"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/vaude-schmugglersteig-klettersteig/"},
+{"id":"neyerschartensteig","segments":[
+{"label":"Breite Scharte, mäßig steil","grade":"A/B","kind":"gully"},
+{"label":"Seilbrücke 20 m, umgehbar","grade":"B","kind":"bridge"},
+{"label":"Steileres Gelände, brüchig","grade":"B","kind":"wall"},
+{"label":"Querung Felsvorsprung, Seiltritte","grade":"C/D","kind":"traverse","crux":true},
+{"label":"Zur Neyerscharte","grade":"B","kind":"ridge"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/neyerscharte-klettersteig-zimba/"},
+{"id":"kleinlitzner-sudgrat-ernst-scheib","segments":[
+{"label":"Steile Kehren zu den Seilen","grade":"A/B","kind":"walk"},
+{"label":"Schutt entlang der Wand zur Nische","grade":"B","kind":"gully"},
+{"label":"Steilaufschwung, Querung rechts","grade":"B/C","kind":"traverse"},
+{"label":"Kurzer steiler Kamin","grade":"C","kind":"wall","crux":true},
+{"label":"Rinne über Felsrampe links","grade":"B","kind":"gully"},
+{"label":"Aufschwung in festem Fels","grade":"B/C","kind":"wall"},
+{"label":"Flacher Grat zum Gipfelplateau","grade":"B","kind":"ridge"}
+],"topoUrl":"https://klettersteig.de/klettersteig/kleinlitzner_suedgrat_ernst_scheib_steig_/40"},
+{"id":"staumauer-silvrettasee","segments":[
+{"label":"Senkrecht hinauf am Mauerfuß","grade":"A/B","kind":"wall"},
+{"label":"Links zur Holzplattform, Bank","grade":"A/B","kind":"traverse"},
+{"label":"Schräg rechts über Felstritte","grade":"A/B","kind":"traverse"},
+{"label":"Querung zum ersten Pfeiler","grade":"A/B","kind":"traverse"},
+{"label":"Dreiteilige Seilbrücke","grade":"B","kind":"bridge","crux":true},
+{"label":"Eisenleiter abwärts","grade":"A/B","kind":"ladder"},
+{"label":"Querung zur zweiten Plattform","grade":"A/B","kind":"traverse"},
+{"label":"Schwingpendel 12 m, Handlauf","grade":"B","kind":"bridge"},
+{"label":"Aluleiter zur Aussichtsplattform","grade":"A/B","kind":"ladder"},
+{"label":"Drehkreuz auf die Mauerkrone","grade":"A","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/silvrettasee-staumauer-klettersteig/"},
+{"id":"uebungs-wiesbadener-huette-linker","segments":[
+{"label":"Einstiegswand, kaum Klammern","grade":"B/C","kind":"wall"},
+{"label":"Leicht überhängend, oberes Drittel","grade":"B/C","kind":"overhang","crux":true},
+{"label":"Ausstieg","grade":"B","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/uebungsklettersteige-wiesbadener-huette/"},
+{"id":"ubungs-e-wiesbadener-hutte","segments":[
+{"label":"Einstiegswand rechter Steig","grade":"A/B","kind":"wall"},
+{"label":"Steilstufe im oberen Drittel","grade":"B","kind":"wall","crux":true},
+{"label":"Ausstieg","grade":"A/B","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/uebungsklettersteige-wiesbadener-huette/"},
+{"id":"hochjoch-hochalpila-grat","segments":[
+{"label":"Wiesengrat am Stahlseil","grade":"B","kind":"ridge"},
+{"label":"Felsige Gratstellen","grade":"B","kind":"ridge"},
+{"label":"Rinne mit Eisentritten","grade":"B","kind":"gully","crux":true},
+{"label":"Notausstieg, letztes Drittel","grade":"B","kind":"exit"},
+{"label":"Breiter Grat zum Gipfelkreuz","grade":"B","kind":"ridge"},
+{"label":"Option: Seilhängebrücke 60 m","grade":"B","kind":"bridge"}
+],"topoUrl":"https://klettersteig.de/klettersteig/hochjoch_versicherte_gratwanderung_b_/2346"},
+{"id":"hochjoch-westwand","segments":[
+{"label":"Steile Einstiegswand","grade":"C","kind":"wall"},
+{"label":"Erste Plattenquerung","grade":"C","kind":"traverse","crux":true},
+{"label":"Zweite Plattenquerung","grade":"C","kind":"traverse"},
+{"label":"Leiter und Platten","grade":"B/C","kind":"ladder"},
+{"label":"Grasgrat, wird leichter","grade":"B","kind":"ridge"},
+{"label":"Seilbrücke 10 m","grade":"B","kind":"bridge"},
+{"label":"Seilhängebrücke 62 m, umgehbar","grade":"B","kind":"bridge"},
+{"label":"Rinne zum Gipfelgrat","grade":"B/C","kind":"gully"},
+{"label":"Gipfelkreuz Hochjoch","grade":"A","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/hochjoch-klettersteig-schruns/"}
+]}

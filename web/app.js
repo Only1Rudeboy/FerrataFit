@@ -12,9 +12,11 @@ import { parseBodyFile, mergeBody } from './bodyimport.js';
 import * as FE from './ferrata.js';
 import { FERRATAS, ferrataById, ferrataRegions } from './ferratas.js';
 import { GEO_BOUNDS, GEO_POINTS, GEO_OUTLINE, GEO_LANDMARKS } from './ferrageo.js';
+import { photosFor, topoFor, GALLERIES, TOPO_URLS } from './ferramedia.js';
+import * as PhotoDb from './photodb.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
-const APP_VERSION = '1.10';
+const APP_VERSION = '1.11';
 
 const DEFAULT_STATE = {
   profile: {
@@ -26,6 +28,8 @@ const DEFAULT_STATE = {
     targetFerrataDate: null,
     targetFerrataName: '',
     onboarded: false,
+    /** Frei lizenzierte Fotos von Wikimedia Commons nachladen — abschaltbar. */
+    webPhotosEnabled: true,
   },
   sessions: [],
   hiddenExercises: [],
@@ -51,6 +55,8 @@ let restTimer = null;
 let trendPick = null;
 let ferrataRegion = null;   // Gebietsfilter in der Missionsübersicht
 let ferrataMap = false;     // Karte statt Liste
+let routeTab = 0;           // Reiter in der aufgeklappten Routenkarte: 0 Info, 1 Fotos, 2 Eigene, 3 Topo
+const ownPhotoCache = {};   // routeId -> [{id, url}] aus IndexedDB, für die synchrone Anzeige
 let ferrataOpen = null;     // aufgeklappte Route
 let showTooEarly = false;
 let ascentForm = null;      // offenes Eintragsformular
@@ -1279,6 +1285,14 @@ function routeCard(r, fit) {
 
     ${open ? `
       <div style="margin-top:13px">
+        <div class="chips" style="margin-bottom:12px;padding:0">
+          ${['Info',
+             photosFor(r.id).length ? `Fotos · ${photosFor(r.id).length}` : 'Fotos',
+             (ownPhotoCache[r.id] || []).length ? `Eigene · ${ownPhotoCache[r.id].length}` : 'Eigene',
+             'Topo'].map((l, i) => `<button class="chip ${routeTab === i ? 'on' : ''}"
+               data-route-tab="${i}">${l}</button>`).join('')}
+        </div>
+        ${routeTab === 1 ? webPhotosTab(r) : routeTab === 2 ? ownPhotosTab(r) : routeTab === 3 ? topoTab(r) : `
         <div class="chips" style="margin-bottom:10px">
           ${r.crux ? `<span class="pill rose">Schlüsselstelle ${esc(r.crux)}</span>` : ''}
           ${r.hasExit ? '<span class="pill emerald">Notausstieg</span>' : ''}
@@ -1299,9 +1313,111 @@ function routeCard(r, fit) {
         ${r.sources && r.sources.length ? `
           <p class="dim" style="font-size:11.5px;margin-top:11px">Quellen: ${
             r.sources.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${
-              esc(u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0])}</a>`).join(' ')}</p>` : ''}
+              esc(u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0])}</a>`).join(' ')}</p>` : ''}`}
       </div>` : ''}
   </div>`;
+}
+
+const host = (u) => u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+
+/**
+ * Fotos von Wikimedia Commons — geladen, wenn der Reiter aufgeht, nicht vorher.
+ * Jedes Bild nennt Urheber und Lizenz: die Bedingung der freien Lizenzen und der Grund,
+ * warum diese Fotos in einer öffentlichen App überhaupt gezeigt werden dürfen.
+ */
+function webPhotosTab(r) {
+  const photos = photosFor(r.id);
+  const gallery = GALLERIES[r.id];
+  let body;
+  if (!state.profile.webPhotosEnabled) {
+    body = `<p class="dim" style="font-size:13px">Das Nachladen von Fotos ist unter Mehr → Netz
+      ausgeschaltet. Die App lädt dann nichts aus dem Internet.</p>`;
+  } else if (!photos.length) {
+    body = `<p class="dim" style="font-size:13px">Für diesen Steig gibt es auf Wikimedia Commons kein
+      frei lizenziertes Foto. Fremde Fotos aus dem Netz nimmt die App bewusst nicht auf — Urheberrecht.</p>`;
+  } else {
+    body = photos.map((p) => `
+      <figure class="webphoto">
+        <img src="${esc(p.url)}" alt="${esc(p.shows)}" loading="lazy">
+        <figcaption>
+          <div class="muted" style="font-size:13px">${esc(p.shows)}</div>
+          <a href="${esc(p.pageUrl)}" target="_blank" rel="noopener" style="font-size:11.5px">
+            ${esc(p.author)} · ${esc(p.license)} · Wikimedia Commons</a>
+        </figcaption>
+      </figure>`).join('');
+  }
+  return body + (gallery ? `
+    <a class="linkcard" href="${esc(gallery)}" target="_blank" rel="noopener">
+      Weitere Fotos auf ${esc(host(gallery))} ↗</a>` : '');
+}
+
+/** Eigene Fotos aus IndexedDB — beim Öffnen des Reiters nachgeladen. */
+function ownPhotosTab(r) {
+  const own = ownPhotoCache[r.id];
+  if (!own) loadOwnPhotos(r.id);
+  return `
+    ${!own ? '<p class="dim" style="font-size:13px">Lade …</p>'
+      : !own.length ? `<p class="dim" style="font-size:13px">Noch kein eigenes Bild. Häng eines direkt
+          an den Steig — es bleibt in diesem Browser gespeichert.</p>`
+      : own.map((p) => `
+        <figure class="webphoto">
+          <img src="${p.url}" alt="Eigenes Foto: ${esc(r.name)}">
+          <figcaption class="row">
+            <span class="dim grow" style="font-size:11.5px">direkt angehängt</span>
+            <button class="btn ghost small" data-del-photo="${esc(p.id)}" data-photo-route="${esc(r.id)}"
+              style="width:auto;height:34px;padding:0 12px">entfernen</button>
+          </figcaption>
+        </figure>`).join('')}
+    <label class="linkcard" style="cursor:pointer">📷&nbsp; Foto hinzufügen
+      <input type="file" accept="image/*" data-add-photo="${esc(r.id)}" style="display:none"></label>`;
+}
+
+async function loadOwnPhotos(routeId) {
+  try {
+    const rows = await PhotoDb.listPhotos(routeId);
+    (ownPhotoCache[routeId] || []).forEach((p) => URL.revokeObjectURL(p.url));
+    ownPhotoCache[routeId] = rows.map((row) => ({ id: row.id, url: URL.createObjectURL(row.blob) }));
+  } catch {
+    ownPhotoCache[routeId] = [];
+  }
+  render();
+}
+
+/**
+ * Die schematische Topo: vom Einstieg unten zum Ausstieg oben.
+ * Gezeichnet aus Abschnitten, die aus den Tourenbeschreibungen gezogen sind —
+ * Reihenfolge, Art, Grad. Fakten sind frei; die gezeichnete Original-Topo ist
+ * Urheberwerk und gibt es deshalb nur als Link.
+ */
+function topoTab(r) {
+  const segs = topoFor(r.id);
+  const url = TOPO_URLS[r.id];
+  const ICON = { ladder: '🪜', bridge: '🌉', ridge: '⛰', gully: '🏔', cave: '🕳', overhang: '🧗',
+    walk: '🥾', exit: '🚪', traverse: '↔', wall: '▲' };
+  const tone = (g) => { const i = FE.gradeIndex(g); return i <= 1 ? 'emerald' : i === 2 ? 'sky' : i === 3 ? 'amber' : 'rose'; };
+  // Ohne Einstiegshöhe im Katalog wäre „Ausstieg · 60 m" eine Seehöhe, die keine ist
+  const topLabel = r.startAlt ? ` · ${Math.max(r.summitAlt || 0, r.startAlt + (r.climbMeters || 0))} m`
+    : r.climbMeters ? ` · +${r.climbMeters} Hm` : '';
+  if (!segs.length) return '<p class="dim" style="font-size:13px">Für diesen Steig liegt noch keine Abschnittsfolge vor.</p>';
+  return `
+    <div class="dim" style="font-size:12px;margin-bottom:6px">▲ Ausstieg${topLabel}</div>
+    <div class="topo">
+      ${[...segs].reverse().map((s) => `
+        <div class="seg ${s.kind === 'exit' ? 'exit' : tone(s.grade)} ${s.crux ? 'crux' : ''}">
+          <i></i>
+          <b>${s.kind === 'exit' ? '🚪' : esc(s.grade)}</b>
+          <div class="grow">
+            <div>${ICON[s.kind] || '▲'} ${esc(s.label)}</div>
+            ${s.crux || s.meters || s.kind === 'exit' ? `<small>${[
+              s.crux ? 'Schlüsselstelle' : '', s.meters ? `${s.meters} Hm` : '',
+              s.kind === 'exit' ? 'Notausstieg' : ''].filter(Boolean).join(' · ')}</small>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="dim" style="font-size:12px;margin-top:6px">▼ Einstieg${r.startAlt ? ` · ${r.startAlt} m` : ''}</div>
+    <p class="dim" style="font-size:12px;margin-top:10px">Schematisch, aus den Tourenbeschreibungen
+      abgeleitet — Reihenfolge und Grade der Abschnitte, nicht ihre Länge. Am Einstieg zählt die Tafel vor Ort.</p>
+    ${url ? `<a class="linkcard" href="${esc(url)}" target="_blank" rel="noopener">Gezeichnete Topo auf ${esc(host(url))} ↗</a>` : ''}`;
 }
 
 /**
@@ -1549,6 +1665,18 @@ function viewSettings() {
         Wochen: vier Wochen steigern, eine Woche entlasten. Nach einer längeren Pause ist es sinnvoll,
         den Block neu zu starten — dann beginnst du wieder mit reichlich Puffer statt an der Belastungsspitze.</p>
       <button class="btn ghost small" id="restart-cycle">↻ Block neu starten</button>
+    </div>
+
+    <div class="section-title"><span>Netz</span></div>
+    <div class="card">
+      <label class="row" style="cursor:pointer">
+        <div class="grow">
+          <div style="font-weight:600">Fotos aus dem Internet laden</div>
+          <div class="dim" style="font-size:12.5px">Frei lizenzierte Bilder zu den Steigen von Wikimedia
+            Commons — geladen erst, wenn du den Foto-Reiter eines Steigs öffnest.</div>
+        </div>
+        <input type="checkbox" id="set-webphotos" ${state.profile.webPhotosEnabled ? 'checked' : ''}>
+      </label>
     </div>
 
     <div class="section-title"><span>Sicherung</span></div>
@@ -2199,6 +2327,33 @@ function bindFerrata() {
     b.onclick = () => { ferrataRegion = b.dataset.region || null; ferrataMap = false; render(); };
   });
 
+  document.querySelectorAll('[data-route-tab]').forEach((b) => {
+    b.onclick = (ev) => { ev.stopPropagation(); routeTab = +b.dataset.routeTab; render(); };
+  });
+  document.querySelectorAll('[data-add-photo]').forEach((inp) => {
+    inp.onchange = async () => {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      const routeId = inp.dataset.addPhoto;
+      try {
+        await PhotoDb.addPhoto(routeId, file);
+        delete ownPhotoCache[routeId];
+        loadOwnPhotos(routeId);
+      } catch (e) {
+        toast('Das Bild ließ sich nicht übernehmen.', true);
+      }
+    };
+  });
+  document.querySelectorAll('[data-del-photo]').forEach((b) => {
+    b.onclick = async (ev) => {
+      ev.stopPropagation();
+      const routeId = b.dataset.photoRoute;
+      await PhotoDb.deletePhoto(b.dataset.delPhoto).catch(() => {});
+      delete ownPhotoCache[routeId];
+      loadOwnPhotos(routeId);
+    };
+  });
+
   const mapToggle = document.querySelector('[data-ferrata-map]');
   if (mapToggle) mapToggle.onclick = () => { ferrataMap = !ferrataMap; render(); };
 
@@ -2215,6 +2370,7 @@ function bindFerrata() {
     el.onclick = (ev) => {
       // Der Stern liegt in derselben Zeile — sein Klick darf die Karte nicht aufklappen
       if (ev.target.closest('[data-plan]')) return;
+      routeTab = 0;
       const id = el.dataset.route;
       ferrataOpen = ferrataOpen === id ? null : id;
       render();
@@ -2352,6 +2508,8 @@ function captureAscentInputs() {
 }
 
 function bindSettings() {
+  const wp = document.getElementById('set-webphotos');
+  if (wp) wp.onchange = () => update((st) => { st.profile.webPhotosEnabled = wp.checked; });
   const bw = $('#set-bw');
   if (bw) bw.onchange = () => {
     const v = parseFloat(bw.value);
@@ -2633,5 +2791,13 @@ export const __test = {
   active: () => active,
   state: () => state,
   saveAscent: (f) => { ascentForm = f; saveAscent(); },
+  routeCard: (id, tab) => {
+    const o = ferrataOpen, ot = routeTab;
+    ferrataOpen = id; routeTab = tab;
+    ownPhotoCache[id] = ownPhotoCache[id] || [];
+    const h = routeCard(ferrataById(id), FE.FIT.ZU_FRUEH);
+    ferrataOpen = o; routeTab = ot;
+    return h;
+  },
   reset: () => { active = null; activeStage = null; resumeAsk = null; },
 };

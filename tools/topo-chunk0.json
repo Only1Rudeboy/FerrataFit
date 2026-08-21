@@ -1,0 +1,101 @@
+{"routes":[
+{"id":"alpin-live-linke-route","segments":[
+{"label":"Einstiegswand","grade":"C/D","kind":"wall","meters":40},
+{"label":"Querverbindung zur rechten Route","grade":"C/D","kind":"traverse"},
+{"label":"Überhang im Mittelteil","grade":"D/E","kind":"overhang","meters":20,"crux":true},
+{"label":"Obere Wand","grade":"D","kind":"wall","meters":20}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/luenersee-uebungs-klettersteig-alpin-live/"},
+{"id":"alpin-live-rechte-route","segments":[
+{"label":"Einstiegswand","grade":"B/C","kind":"wall","meters":40},
+{"label":"Querverbindung zur linken Route","grade":"B/C","kind":"traverse"},
+{"label":"Mittelteil, senkrecht","grade":"D","kind":"wall","meters":20},
+{"label":"Dach, waagrecht überhängend","grade":"E","kind":"overhang","meters":20,"crux":true}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/luenersee-uebungs-klettersteig-alpin-live/"},
+{"id":"kellenegg","segments":[
+{"label":"Einstiegswand","grade":"B","kind":"wall"},
+{"label":"Kante","grade":"B/C","kind":"wall"},
+{"label":"Senkrechte Klammernpassage","grade":"B/C","kind":"ladder"},
+{"label":"Kleiner Überhang","grade":"C","kind":"overhang","crux":true},
+{"label":"Rampe, Querung","grade":"B","kind":"traverse"},
+{"label":"Steile Platte mit Schuppe","grade":"B/C","kind":"wall"},
+{"label":"Zweiter kleiner Überhang","grade":"C","kind":"overhang"},
+{"label":"Erdig zum Baum, Ausstieg","grade":"A/B","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/kellenegg-klettersteig/"},
+{"id":"abendrot-widerschrofen","segments":[
+{"label":"Einstiegswand","grade":"D","kind":"wall"},
+{"label":"Plattenpassage nach dem 1. Band","grade":"D/E","kind":"wall"},
+{"label":"Überhang im Mittelteil","grade":"D/E","kind":"overhang","crux":true},
+{"label":"Rastbank auf halber Höhe","grade":"A","kind":"walk"},
+{"label":"Ausstiegswand","grade":"D/E","kind":"wall"},
+{"label":"Letzte Meter zum Ausstieg","grade":"C","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/abendrot-klettersteig-widerschrofen/"},
+{"id":"walder-widerschrofen","segments":[
+{"label":"Einstiegswand","grade":"D","kind":"wall","crux":true},
+{"label":"Senkrechte Klammernwand","grade":"D","kind":"ladder"},
+{"label":"Große Rastplattform","grade":"A","kind":"walk"},
+{"label":"Überhängende Passage, Ausstieg","grade":"D","kind":"overhang"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/waelder-klettersteig-widerschrofen/"},
+{"id":"wandfluh","segments":[
+{"label":"Einstieg, grasdurchsetzter Fels","grade":"C","kind":"wall"},
+{"label":"Lange ausgesetzte C-Passagen","grade":"C","kind":"wall"},
+{"label":"Gelbe Querung","grade":"C","kind":"traverse"},
+{"label":"Aufschwung nach der Querung","grade":"C/D","kind":"wall","crux":true},
+{"label":"Erdiger Latschenhang, Ausstieg","grade":"A/B","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/wandfluh-klettersteig/"},
+{"id":"kanzelwand-erlebnis-walsersteig","segments":[
+{"label":"Gestufter Einstieg","grade":"B","kind":"wall"},
+{"label":"Zwischenband","grade":"A","kind":"traverse"},
+{"label":"Scharte","grade":"B","kind":"gully"},
+{"label":"Steile Kante","grade":"B/C","kind":"wall","crux":true},
+{"label":"Querung mit Fußseil","grade":"B","kind":"traverse"},
+{"label":"Burmabrücke 25 m","grade":"A/B","kind":"bridge"},
+{"label":"Absteigende Querung","grade":"B","kind":"traverse"},
+{"label":"Steile Querung aufwärts","grade":"B/C","kind":"traverse"},
+{"label":"Schlussrampe zum Gipfelplateau","grade":"B","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/kanzelwand-erlebnisklettersteig-walsersteig/"},
+{"id":"mindelheimer","segments":[
+{"label":"Leichter Einstieg ab Fiderescharte","grade":"A/B","kind":"wall"},
+{"label":"Überhängende Wand","grade":"C","kind":"overhang","crux":true},
+{"label":"Steil zum 3. Schafalpenkopf","grade":"C","kind":"wall"},
+{"label":"Abstieg über den Gipfelgrat","grade":"B/C","kind":"ridge"},
+{"label":"Kurze Leiterbrücke","grade":"A/B","kind":"bridge"},
+{"label":"Klammernleiter in die Scharte","grade":"B/C","kind":"ladder"},
+{"label":"Kamine, Leitern, 2. Schafalpenkopf","grade":"B","kind":"ladder"},
+{"label":"Zackengrat mit Spreizschritt","grade":"B","kind":"ridge"},
+{"label":"Scharte, Platte zum 1. Kopf","grade":"A/B","kind":"wall"},
+{"label":"Leiter, Rissverschneidung, Ausstieg","grade":"A/B","kind":"ladder"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/mindelheimer-klettersteig/"},
+{"id":"zweilander-sport-kanzelwand","segments":[
+{"label":"Einstiegsrampe","grade":"A/B","kind":"walk"},
+{"label":"Platte, ausgesetzte Kante","grade":"C/D","kind":"wall"},
+{"label":"Band","grade":"A","kind":"traverse"},
+{"label":"Senkrechte Wand","grade":"C/D","kind":"wall"},
+{"label":"Lange kräftige Querung","grade":"C","kind":"traverse"},
+{"label":"Rampe zum Rastpunkt","grade":"A/B","kind":"walk"},
+{"label":"Trittarme senkrechte Wand","grade":"D","kind":"wall","crux":true},
+{"label":"Kurze Querung, Seilbrücke","grade":"A/B","kind":"bridge"},
+{"label":"Pfeiler und Überhangblock","grade":"C/D","kind":"overhang"},
+{"label":"Kante, gestuft zur Gipfelplattform","grade":"C","kind":"wall"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/zweilaender-sport-klettersteig-kanzelwand/"},
+{"id":"klostertaler-am-fallbach","segments":[
+{"label":"Einstiegswand, plattig","grade":"C","kind":"wall"},
+{"label":"Steile Klammernwand","grade":"C/D","kind":"ladder"},
+{"label":"Gestuft zum Wasserfall","grade":"C","kind":"wall"},
+{"label":"Schotterplatz, Ende Unterteil","grade":"A","kind":"walk"},
+{"label":"Gestuft über Grasbänder zur Bank","grade":"B/C","kind":"walk"},
+{"label":"Platte zum kleinen Dach, Steigbuch","grade":"C/D","kind":"overhang"},
+{"label":"Steil zum Band vor der Schlusswand","grade":"C","kind":"wall"},
+{"label":"Dunkle Schlusswand, wenig Klammern","grade":"C/D","kind":"wall","crux":true},
+{"label":"Um die Kante, erdig zum Ausstieg","grade":"B","kind":"walk"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/klostertaler-klettersteig-am-fallbach/"},
+{"id":"karhorn-ostgrat","segments":[
+{"label":"Einstiegswandl","grade":"B","kind":"wall"},
+{"label":"Grat, teils ungesichert","grade":"A/B","kind":"ridge"},
+{"label":"Abstieg in die Scharte","grade":"A","kind":"walk"},
+{"label":"Kurze Plattenquerung","grade":"A/B","kind":"traverse"},
+{"label":"Aufschwung links des Grats","grade":"B/C","kind":"wall","crux":true},
+{"label":"Am Grat aufwärts","grade":"A/B","kind":"ridge"},
+{"label":"Gehgelände, blau markiert","grade":"A","kind":"walk"},
+{"label":"Kurze Ausstiegsrinne, 30 m zum Gipfel","grade":"A/B","kind":"gully"}
+],"topoUrl":"https://www.bergsteigen.com/touren/klettersteig/karhorn-klettersteig/"}
+]}

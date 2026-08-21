@@ -23,9 +23,9 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   — im Browser öffnen und über „App installieren" bzw. „Zum Home-Bildschirm hinzufügen"
   wie eine App verwenden. Läuft dank Service Worker auch ohne Netz.
 
-| Heute | Am Fels | Karte | Erholung | Anleitung |
+| Heute | Am Fels | Karte | Fotos | Topo |
 |---|---|---|---|---|
-| ![Startbildschirm](docs/screenshots/heute.png) | ![Missionsübersicht](docs/screenshots/amfels.png) | ![Karte](docs/screenshots/karte.png) | ![Erholungsfenster](docs/screenshots/erholung.png) | ![Übungsanleitung](docs/screenshots/anleitung.png) |
+| ![Startbildschirm](docs/screenshots/heute.png) | ![Missionsübersicht](docs/screenshots/amfels.png) | ![Karte](docs/screenshots/karte.png) | ![Fotos von Commons](docs/screenshots/fotos.png) | ![Topo](docs/screenshots/topo.png) |
 
 ## ✨ Funktionen
 
@@ -35,8 +35,11 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   den echten Klettermetern
 - **Belastungsmodell** — jede Begehung bekommt eine Zahl aus Umfang, Grad, Gefühl und
   Puls; danach richtet sich, wie viel Erholung folgt und wie stark die Vorschläge sinken
-- **Foto zur Begehung** — ein eigenes Bild vom Tag, verkleinert im App-Ordner, erscheint
-  in der Begehungsliste
+- **Fotos zu jedem Steig** — 157 frei lizenzierte Bilder von Wikimedia Commons mit
+  Urheber und Lizenz, nachgeladen erst beim Öffnen; dazu eigene Bilder aus Begehungen
+  oder direkt angehängt
+- **Topo zu jedem Steig** — schematischer Steigplan mit 307 Abschnitten: Grad, Art,
+  Schlüsselstelle, Notausstiege
 - **Automatische Sicherung** — einmal pro Woche still nach Documents/FerrataFit; wer die
   App versehentlich löscht, verliert nichts (Android 10+)
 - **Tagesskizze je Route** — Zustieg, Wand, Abstieg mit Zeiten und Höhen; gestrichelt,
@@ -287,13 +290,30 @@ Pausenuhr. Beim Zurückkommen steht alles wieder da.
 
 Dasselbe gilt für die Web-Fassung, dort über den Zwischenspeicher des Browsers.
 
-## 📷 Fotos
+## 📷 Fotos und Topo
 
-Beim Eintragen einer Begehung lässt sich ein eigenes Foto anhängen — es erscheint in der
-Begehungsliste unter „Am Fels". Das Bild wird verkleinert (längste Kante 1600 Pixel) in
-den App-Ordner kopiert; das Original bleibt unangetastet in der Galerie. Beim Löschen
-einer Begehung wird die Kopie mitgelöscht. Fremde Fotos aus dem Netz nimmt die App
-bewusst nicht auf — Urheberrecht.
+Jede aufgeklappte Route hat vier Reiter: **Info**, **Fotos**, **Eigene**, **Topo**.
+
+**Fotos** zeigt frei lizenzierte Bilder von **Wikimedia Commons** — 157 Fotos zu 43 der
+44 Steige, jedes mit Urheber und Lizenz, denn genau das verlangen diese Lizenzen. Die App
+bündelt die Bilder nicht, sie lädt sie erst, wenn der Reiter aufgeht, wie ein Browser es
+täte. Ob Datei und Lizenz stimmen, hat der Generator (`tools/gen_media.py`) über die
+Commons-API nachgeprüft; erlaubt sind nur CC0, CC BY, CC BY-SA, Public Domain und FAL.
+Dazu der Link zur Galerie des Tourenportals, wo die Fotos liegen, die die App aus
+Rechtsgründen nicht einbinden darf. Das Nachladen lässt sich unter **Mehr → Netz**
+abschalten — es ist neben der App-Aktualisierung der einzige Netzzugriff der App.
+
+**Eigene** sammelt deine Bilder: die aus Begehungen dieser Route und solche, die du
+direkt an den Steig hängst. Verkleinert im App-Ordner (Android) bzw. in IndexedDB (Web);
+das Original bleibt unangetastet.
+
+**Topo** ist ein schematischer Steigplan: vom Einstieg unten zum Ausstieg oben, jeder
+Abschnitt mit Grad, Art (Wand, Querung, Leiter, Brücke, Überhang, Höhle …) und
+Schlüsselstelle, Notausstiege an ihrer Stelle. 307 Abschnitte zu allen 44 Steigen,
+abgeleitet aus den Tourenbeschreibungen — Reihenfolge, Art und Grad sind Fakten und
+damit frei; die Zeichnung ist unsere. Die gezeichnete Original-Topo von bergsteigen.com
+ist Urheberwerk und gibt es deshalb nur als Link. Ein Test wacht darüber, dass keine
+Topo einen Grad behauptet, der mehr als eine Stufe über dem Katalog liegt.
 
 ## 💾 Automatische Sicherung
 
@@ -464,11 +484,12 @@ FerrataFit/
 │   │   ├── Ferrata.kt                Rang, Steigpass, Einordnung der Routen
 │   │   ├── Recovery.kt               Belastungszahl und Erholungsfenster
 │   │   ├── FerrataGeo.kt             Koordinaten für die Karte
+│   │   ├── FerrataMedia.kt           Commons-Fotos und Topo-Abschnitte
 │   │   └── FerrataRoutes.kt          Die 44 Klettersteige
 │   ├── app/src/main/java/…/ui/       Oberfläche
 │   ├── app/src/main/java/…/health/   Health Connect
 │   ├── app/src/main/java/…/update/   Selbstaktualisierung über GitHub
-│   ├── app/src/test/                 168 Tests
+│   ├── app/src/test/                 202 Tests
 │   └── build.sh                      Bauen
 ├── web/              Web-App (ohne Build-Schritt)
 │   ├── exercises.js                  Übungskatalog mit Ausführungsanleitungen
@@ -476,7 +497,7 @@ FerrataFit/
 │   ├── journey.js                    Etappen, Dehnkatalog, Höhenmeter, Abzeichen
 │   ├── ferrata.js                    Rang, Steigpass, Einordnung der Routen
 │   ├── ferratas.js                   Die 44 Klettersteige
-│   └── test-*.mjs                    151 Prüfungen, inkl. Gleichlauf mit Android
+│   └── test-*.mjs                    196 Prüfungen, inkl. Gleichlauf mit Android
 └── docs/             Trainingswissen und Screenshots
 ```
 

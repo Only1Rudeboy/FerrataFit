@@ -187,5 +187,25 @@ ok('Übungssteig bleibt außerhalb des Zyklus', nachKlein.at(-1).stageId === 'F0
   JSON.stringify(nachKlein.at(-1)));
 ok('seine Höhenmeter zählen trotzdem', nachKlein.at(-1).meters === 60);
 
+// ------------------------------------------------------------------
+// Die Reiter der Routenkarte
+// ------------------------------------------------------------------
+const karte = (tab) => t.routeCard('saulakopf', tab);
+ok('Reiter Info zeigt die Beschreibung', /Ostwand/.test(karte(0)));
+ok('Reiter Fotos zeigt Commons-Bilder mit Urheber und Lizenz',
+  /upload\.wikimedia\.org/.test(karte(1)) && /CC BY-SA/.test(karte(1)) && /Wikimedia Commons/.test(karte(1)));
+ok('Reiter Fotos verlinkt die Galerie des Portals', /bergsteigen\.com/.test(karte(1)));
+ok('Reiter Eigene bietet das Hinzufügen an', /Foto hinzufügen/.test(karte(2)));
+ok('Reiter Topo zeigt die Abschnitte von oben nach unten',
+  /Ausstieg/.test(karte(3)) && /Einstieg/.test(karte(3)) && /Schlüsselstelle/.test(karte(3)));
+ok('Reiter Topo markiert den Notausstieg', /Notausstieg/.test(karte(3)));
+ok('Topo ist als schematisch gekennzeichnet', /Schematisch/.test(karte(3)));
+ok('kein rohes undefined in den Reitern', ![0, 1, 2, 3].some((i) => /undefined/.test(karte(i))));
+
+// Ohne Netzfreigabe: keine Bild-URL im HTML
+t.state().profile.webPhotosEnabled = false;
+ok('abgeschaltet lädt der Foto-Reiter nichts', !/upload\.wikimedia\.org/.test(karte(1)) && /ausgeschaltet/.test(karte(1)));
+t.state().profile.webPhotosEnabled = true;
+
 console.log(bad === 0 ? '\nRauchtest bestanden.\n' : `\n${bad} Problem(e).\n`);
 process.exit(bad ? 1 : 0);

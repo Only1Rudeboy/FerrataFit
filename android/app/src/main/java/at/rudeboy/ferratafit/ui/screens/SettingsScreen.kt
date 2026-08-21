@@ -45,6 +45,7 @@ fun SettingsScreen(
     onToggleStation: (Station) -> Unit,
     onSetHealthEnabled: (Boolean) -> Unit,
     onSetAutoWeight: (Boolean) -> Unit,
+    onSetWebPhotos: (Boolean) -> Unit = {},
     onSetTravelMode: (Boolean) -> Unit,
     onSetReminder: (Boolean, Int?, Int?) -> Unit,
     onSetReminderSkip: (Boolean) -> Unit,
@@ -217,6 +218,40 @@ fun SettingsScreen(
         }
 
         // ---------------- Erinnerung ----------------
+        // ---------------- Netz ----------------
+        item { SectionTitle("Netz") }
+        item {
+            FfCard {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Fotos aus dem Internet laden",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Palette.TextHigh
+                        )
+                        Text(
+                            "Frei lizenzierte Bilder zu den Steigen von Wikimedia Commons — geladen " +
+                                "erst, wenn du den Foto-Reiter eines Steigs öffnest. Neben der " +
+                                "App-Aktualisierung der einzige Netzzugriff der App.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.TextLow
+                        )
+                    }
+                    Switch(
+                        checked = state.profile.webPhotosEnabled,
+                        onCheckedChange = onSetWebPhotos,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.Ink,
+                            checkedTrackColor = Palette.Sky
+                        )
+                    )
+                }
+            }
+        }
+
         item { SectionTitle("Erinnerung") }
         item {
             ReminderCard(
