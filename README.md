@@ -35,6 +35,12 @@ steht, wird die nächste frei. Sie merkt sich jede Last und sagt von selbst, wan
   den echten Klettermetern
 - **Belastungsmodell** — jede Begehung bekommt eine Zahl aus Umfang, Grad, Gefühl und
   Puls; danach richtet sich, wie viel Erholung folgt und wie stark die Vorschläge sinken
+- **Foto zur Begehung** — ein eigenes Bild vom Tag, verkleinert im App-Ordner, erscheint
+  in der Begehungsliste
+- **Automatische Sicherung** — einmal pro Woche still nach Documents/FerrataFit; wer die
+  App versehentlich löscht, verliert nichts (Android 10+)
+- **Tagesskizze je Route** — Zustieg, Wand, Abstieg mit Zeiten und Höhen; gestrichelt,
+  was schematisch ist, durchgezogen nur die belegte Wand
 - **Karte** — die Silhouette Vorarlbergs mit allen 44 Einstiegen, gefärbt nach Passung,
   komplett offline
 - **44 Vorarlberger Klettersteige** mit Missionsübersicht: Die App sortiert sie danach,
@@ -280,6 +286,22 @@ Pausenuhr. Beim Zurückkommen steht alles wieder da.
   Stunden Training im Verlauf
 
 Dasselbe gilt für die Web-Fassung, dort über den Zwischenspeicher des Browsers.
+
+## 📷 Fotos
+
+Beim Eintragen einer Begehung lässt sich ein eigenes Foto anhängen — es erscheint in der
+Begehungsliste unter „Am Fels". Das Bild wird verkleinert (längste Kante 1600 Pixel) in
+den App-Ordner kopiert; das Original bleibt unangetastet in der Galerie. Beim Löschen
+einer Begehung wird die Kopie mitgelöscht. Fremde Fotos aus dem Netz nimmt die App
+bewusst nicht auf — Urheberrecht.
+
+## 💾 Automatische Sicherung
+
+Die Daten liegen im privaten App-Ordner — den nimmt Android beim Deinstallieren mit.
+Deshalb legt die App einmal pro Woche still eine Kopie nach **Documents/FerrataFit/
+FerrataFit-Sicherung.json** (eine Datei, wird überschrieben — kein wachsender Stapel).
+Braucht keine Berechtigung (MediaStore, Android 10+); auf Android 8/9 gibt es nur den
+Export von Hand. Der Zeitpunkt der letzten Sicherung steht unter **Mehr → Sicherung**.
 
 ## 🔄 Aktualisierung
 

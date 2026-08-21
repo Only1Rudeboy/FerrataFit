@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import at.rudeboy.ferratafit.data.AppState
+import at.rudeboy.ferratafit.data.Backup
 import at.rudeboy.ferratafit.data.Profile
 import at.rudeboy.ferratafit.data.Station
 import at.rudeboy.ferratafit.health.HealthBridge
@@ -464,6 +465,22 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = Palette.TextMid
                 )
+                if (Backup.available) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (state.lastBackupAt > 0L) {
+                            "Automatische Sicherung: zuletzt ${
+                                java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.GERMAN)
+                                    .format(java.util.Date(state.lastBackupAt))
+                            } nach Documents/FerrataFit. Läuft einmal pro Woche von selbst."
+                        } else {
+                            "Zusätzlich sichert die App einmal pro Woche von selbst nach " +
+                                "Documents/FerrataFit — die erste Kopie kommt beim nächsten Start."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Palette.TextLow
+                    )
+                }
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(

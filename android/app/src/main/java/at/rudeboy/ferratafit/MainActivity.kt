@@ -214,7 +214,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                     Tab.FERRATA -> FerrataScreen(
                         state = state,
                         onLogAscent = { logAscent = true },
-                        onTogglePlanned = { vm.togglePlannedRoute(it) }
+                        onTogglePlanned = { vm.togglePlannedRoute(it) },
+                        onRemoveAscent = { vm.removeAscent(it) }
                     )
                     Tab.SETTINGS -> SettingsScreen(
                         state = state,
@@ -250,7 +251,8 @@ private fun FerrataApp(vm: AppViewModel = viewModel()) {
                 AscentScreen(
                     onSave = { vm.addAscent(it); logAscent = false },
                     onCancel = { logAscent = false },
-                    watchSessions = tourCandidates
+                    watchSessions = tourCandidates,
+                    onImportPhoto = { vm.importPhoto(it) }
                 )
             }
         }

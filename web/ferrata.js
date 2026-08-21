@@ -345,3 +345,17 @@ export function coversStage(progress, date) {
  */
 export const COVERS_STAGE_SCORE = 20;
 export const countsAsTraining = (score) => score >= COVERS_STAGE_SCORE;
+
+/**
+ * Zeitanteile Zustieg / Steig / Abstieg für die Tagesskizze — normiert auf 1.
+ * Spiegelt Ferrata.daySegments der Android-App; kein Abschnitt unter 12 Prozent,
+ * damit ein Fünf-Minuten-Zustieg kein unsichtbarer Strich wird.
+ */
+export function daySegments(approachMin, ferrataMin, descentMin) {
+  const total = (approachMin || 0) + (ferrataMin || 0) + (descentMin || 0);
+  if (total <= 0) return [1 / 3, 1 / 3, 1 / 3];
+  const raw = [approachMin / total, ferrataMin / total, descentMin / total]
+    .map((f) => Math.max(f, 0.12));
+  const sum = raw[0] + raw[1] + raw[2];
+  return raw.map((f) => f / sum);
+}

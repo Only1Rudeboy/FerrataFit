@@ -1,5 +1,9 @@
 package at.rudeboy.ferratafit.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +40,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -64,7 +71,9 @@ fun AscentScreen(
     onSave: (Ascent) -> Unit,
     onCancel: () -> Unit,
     /** Aufzeichnungen von der Uhr, die noch zu keiner Begehung gehören. */
-    watchSessions: List<OutdoorSession> = emptyList()
+    watchSessions: List<OutdoorSession> = emptyList(),
+    /** Kopiert ein gewähltes Foto in den App-Ordner und liefert den Pfad. */
+    onImportPhoto: (android.net.Uri) -> String? = { null }
 ) {
     // Alles über rememberSaveable und als Zeichenkette gehalten: Nur so überlebt das
     // Formular ein Drehen des Geräts und einen Wechsel in eine andere App. Enums und
@@ -85,6 +94,18 @@ fun AscentScreen(
     var avgHr by rememberSaveable { mutableStateOf(0) }
     var maxHr by rememberSaveable { mutableStateOf(0) }
     var watchStart by rememberSaveable { mutableStateOf(0L) }
+    var photoPath by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { picked ->
+            // Ein neues Foto ersetzt das alte — die Kopie des alten wird gleich entsorgt,
+            // sonst sammeln sich Karteileichen im App-Ordner
+            photoPath?.let { runCatching { java.io.File(it).delete() } }
+            photoPath = onImportPhoto(picked)
+        }
+    }
 
     val route = routeId?.let { FerrataRoutes.byId(it) }
     val grade = runCatching { FerrataGrade.valueOf(gradeName) }.getOrDefault(FerrataGrade.A)
@@ -455,6 +476,66 @@ fun AscentScreen(
             }
         }
 
+        // --- Foto ------------------------------------------------------------
+        item {
+            FfCard {
+                Label("Foto")
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Dein eigenes Bild vom Tag — erscheint bei der Begehung.",
+                    style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+                )
+                Spacer(Modifier.height(10.dp))
+
+                val thumb = remember(photoPath) {
+                    photoPath?.let { path ->
+                        runCatching {
+                            android.graphics.BitmapFactory.decodeFile(path)?.asImageBitmap()
+                        }.getOrNull()
+                    }
+                }
+                if (thumb != null) {
+                    Image(
+                        bitmap = thumb,
+                        contentDescription = "Foto der Begehung",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(190.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            photoPicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }) { Text("Anderes wählen", color = Palette.Sky) }
+                        TextButton(onClick = {
+                            photoPath?.let { runCatching { java.io.File(it).delete() } }
+                            photoPath = null
+                        }) { Text("Entfernen", color = Palette.TextLow) }
+                    }
+                } else {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Palette.SurfaceHigh)
+                            .clickable {
+                                photoPicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("📷  Foto hinzufügen", color = Palette.TextMid)
+                    }
+                }
+            }
+        }
+
         item {
             Button(
                 onClick = {
@@ -475,7 +556,8 @@ fun AscentScreen(
                             note = note.trim(),
                             avgHr = avgHr,
                             maxHr = maxHr,
-                            watchStart = watchStart
+                            watchStart = watchStart,
+                            photoPath = photoPath.orEmpty()
                         )
                     )
                 },

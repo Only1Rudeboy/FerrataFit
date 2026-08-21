@@ -15,6 +15,7 @@ import at.rudeboy.ferratafit.data.Session
 import at.rudeboy.ferratafit.data.SessionEdit
 import at.rudeboy.ferratafit.data.SetLog
 import at.rudeboy.ferratafit.data.Ascent
+import at.rudeboy.ferratafit.data.Backup
 import at.rudeboy.ferratafit.data.Badge
 import at.rudeboy.ferratafit.data.Ferrata
 import at.rudeboy.ferratafit.data.Draft
@@ -549,15 +550,72 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         persistDraft()
     }
 
-    fun removeAscent(id: String) = store.update { s ->
-        val gone = s.ascents.firstOrNull { it.id == id }
-        s.copy(
-            ascents = s.ascents.filterNot { it.id == id },
-            // Nur das zugehörige Protokoll entfernen, nicht jede Begehung desselben Tages
-            progress = if (gone == null) s.progress else s.progress.filterNot {
-                it.stageId == Ferrata.EXTRA_STAGE_ID && it.at == gone.date
+    fun removeAscent(id: String) {
+        val gone = state.value.ascents.firstOrNull { it.id == id }
+
+        store.update { s ->
+            s.copy(
+                ascents = s.ascents.filterNot { it.id == id },
+                // Das zugehörige Protokoll mitnehmen — egal ob es die Etappe abgedeckt
+                // hat oder außerhalb stand, es hängt am selben Zeitstempel.
+                progress = if (gone == null) s.progress else s.progress.filterNot {
+                    it.kind == StageKind.FERRATA.name && it.at == gone.date
+                }
+            )
+        }
+
+        // Das Foto gehört zur Begehung — ohne sie ist es eine Karteileiche im App-Ordner
+        gone?.photoPath?.takeIf { it.isNotBlank() }?.let { runCatching { java.io.File(it).delete() } }
+    }
+
+    /**
+     * Übernimmt ein gewähltes Foto in den App-Ordner — verkleinert.
+     *
+     * Kopieren ist Pflicht: Die Freigabe auf das Original erlischt mit der Sitzung,
+     * beim nächsten App-Start wäre der Verweis tot. Und verkleinert, weil ein
+     * 12-Megapixel-Original pro Begehung den App-Ordner in einer Saison auf
+     * hunderte Megabyte aufbliese — fürs Wiedererkennen reichen 1600 Pixel.
+     */
+    fun importPhoto(uri: android.net.Uri): String? = try {
+        val app = getApplication<Application>()
+        val dir = java.io.File(app.filesDir, "photos").apply { mkdirs() }
+        val file = java.io.File(dir, "A${System.currentTimeMillis()}.jpg")
+
+        val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            // ImageDecoder dreht Fotos anhand der EXIF-Daten selbst richtig
+            android.graphics.ImageDecoder.decodeBitmap(
+                android.graphics.ImageDecoder.createSource(app.contentResolver, uri)
+            ) { decoder, info, _ ->
+                val longest = maxOf(info.size.width, info.size.height)
+                if (longest > 1600) {
+                    val f = 1600.0 / longest
+                    decoder.setTargetSize(
+                        (info.size.width * f).toInt().coerceAtLeast(1),
+                        (info.size.height * f).toInt().coerceAtLeast(1)
+                    )
+                }
+                decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
             }
-        )
+        } else {
+            // Android 8: ohne EXIF-Drehung — Hochkantfotos können dort liegen. Verschmerzbar.
+            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            app.contentResolver.openInputStream(uri)?.use {
+                android.graphics.BitmapFactory.decodeStream(it, null, bounds)
+            }
+            var sample = 1
+            while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 1600) sample *= 2
+            val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+            app.contentResolver.openInputStream(uri)?.use {
+                android.graphics.BitmapFactory.decodeStream(it, null, opts)
+            }
+        } ?: return null
+
+        java.io.FileOutputStream(file).use {
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it)
+        }
+        file.absolutePath
+    } catch (_: Exception) {
+        null
     }
 
     fun togglePlannedRoute(id: String) = store.update { s ->
@@ -1091,6 +1149,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * Genau das ist einmal passiert. Wer hier etwas verschiebt, holt es zurück.
      */
     init {
+        // Einmal pro Woche eine stille Kopie nach Documents/FerrataFit — der
+        // Hauptbestand läge sonst nur im privaten App-Ordner, und den nimmt
+        // Android beim Deinstallieren mit.
+        if (Backup.available && Backup.due(state.value.lastBackupAt, System.currentTimeMillis())) {
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                if (Backup.write(getApplication(), store.exportJson())) {
+                    store.update { it.copy(lastBackupAt = System.currentTimeMillis()) }
+                }
+            }
+        }
+
         val draft = drafts.load()
         val now = System.currentTimeMillis()
         when {

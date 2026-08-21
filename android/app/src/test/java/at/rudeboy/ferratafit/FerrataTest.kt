@@ -266,4 +266,29 @@ class FerrataTest {
             assertTrue("Im Hinweis fehlt: $it", Ferrata.DISCLAIMER.contains(it))
         }
     }
+
+    // ------------------------------------------------------------------
+    // Tagesskizze
+    // ------------------------------------------------------------------
+    // Dieselben Werte prüft test-ferrata.mjs im Browser — die Skizze muss auf
+    // beiden Plattformen dieselben Anteile zeichnen.
+
+    @Test
+    fun tagesskizzeAnteileSummierenAufEins() {
+        val (a, b, c) = Ferrata.daySegments(90, 120, 90)
+        assertEquals(1f, a + b + c, 1e-5f)
+        assertTrue("Der Steig ist der größte Abschnitt", b > a && b > c)
+    }
+
+    @Test
+    fun tagesskizzeOhneZeitenDrittel() {
+        val (a, b, c) = Ferrata.daySegments(0, 0, 0)
+        assertEquals(a, b, 1e-6f)
+        assertEquals(b, c, 1e-6f)
+    }
+
+    @Test
+    fun miniZustiegBleibtSichtbar() {
+        assertTrue(Ferrata.daySegments(5, 300, 60).first >= 0.1f)
+    }
 }

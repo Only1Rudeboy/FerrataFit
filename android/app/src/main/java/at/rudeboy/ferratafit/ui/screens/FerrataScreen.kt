@@ -44,7 +44,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import at.rudeboy.ferratafit.data.AppState
+import at.rudeboy.ferratafit.data.Ascent
+import at.rudeboy.ferratafit.data.FerrataGrade
+import at.rudeboy.ferratafit.data.TourLoad
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.sp
 import at.rudeboy.ferratafit.data.Ferrata
 import at.rudeboy.ferratafit.data.FerrataRoute
 import at.rudeboy.ferratafit.data.FerrataRoutes
@@ -73,7 +88,8 @@ import at.rudeboy.ferratafit.ui.SteigPassCard
 fun FerrataScreen(
     state: AppState,
     onLogAscent: () -> Unit,
-    onTogglePlanned: (String) -> Unit
+    onTogglePlanned: (String) -> Unit,
+    onRemoveAscent: (String) -> Unit = {}
 ) {
     val now = System.currentTimeMillis()
     val readiness = Stats.ferrataReadiness(state.sessions, now)
@@ -85,6 +101,7 @@ fun FerrataScreen(
     var openId by remember { mutableStateOf<String?>(null) }
     var showTooEarly by remember { mutableStateOf(false) }
     var showMap by rememberSaveable { mutableStateOf(false) }
+    var deleteAsk by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Passung aller Steige, ungefiltert — die Karte zeigt immer das ganze Land.
     val fitById = remember(state.ascents, readiness) {
@@ -98,6 +115,29 @@ fun FerrataScreen(
             .sortedWith(compareBy({ it.second.ordinal }, { it.first.gradeEnum.ordinal }, { it.first.name }))
     }
     val groups = remember(sorted) { sorted.groupBy { it.second } }
+
+    deleteAsk?.let { id ->
+        val name = state.ascents.firstOrNull { it.id == id }?.name ?: "diese Begehung"
+        AlertDialog(
+            onDismissRequest = { deleteAsk = null },
+            title = { Text("Begehung löschen?") },
+            text = {
+                Text(
+                    "„$name“ verschwindet aus Verlauf, Rang und Höhenmetern. " +
+                        "Ein Foto dazu wird mitgelöscht."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onRemoveAscent(id); deleteAsk = null }) {
+                    Text("Löschen", color = Palette.Rose)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteAsk = null }) { Text("Behalten") }
+            },
+            containerColor = Palette.SurfaceHigh
+        )
+    }
 
     LazyColumn(
         Modifier.fillMaxWidth(),
@@ -243,6 +283,19 @@ fun FerrataScreen(
             }
         }
 
+        if (state.ascents.isNotEmpty()) {
+            item {
+                Text(
+                    "Deine Begehungen",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Palette.TextHigh, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 12.dp, start = 4.dp)
+                )
+            }
+            items(state.ascents.reversed(), key = { "a_" + it.id }) { a ->
+                AscentRow(a, onRemove = { deleteAsk = a.id })
+            }
+        }
         }
 
         item {
@@ -257,6 +310,137 @@ fun FerrataScreen(
                 )
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/**
+ * Die Tagesskizze: Zustieg, Wand, Abstieg.
+ *
+ * Bewusst „Skizze" und nicht „Profil": Belegt sind nur Einstiegshöhe, Ausstiegshöhe
+ * und die drei Zeiten. Zustieg und Abstieg sind deshalb gestrichelt — ihre Form ist
+ * schematisch, nur die Wand dazwischen ist echte Angabe. Eine Kurve, die mehr
+ * behauptet, würde Wissen vortäuschen, das keine Quelle hergibt.
+ */
+@Composable
+private fun DayProfile(route: FerrataRoute) {
+    val measurer = rememberTextMeasurer()
+    val topAlt = maxOf(route.summitAlt, route.startAlt + route.climbMeters)
+    val (za, fe, ab) = Ferrata.daySegments(route.approachMin, route.ferrataMin, route.descentMin)
+    val gradeColor = when (route.gradeEnum) {
+        FerrataGrade.A, FerrataGrade.B -> Palette.Emerald
+        FerrataGrade.C -> Palette.Sky
+        FerrataGrade.D -> Palette.Amber
+        else -> Palette.Rose
+    }
+
+    Canvas(
+        Modifier
+            .fillMaxWidth()
+            .height(110.dp)
+    ) {
+        val w = size.width
+        val h = size.height
+        val yBase = h * 0.78f
+        val yIn = h * 0.62f
+        val yTop = h * 0.10f
+        val x1 = w * za
+        val x2 = w * (za + fe)
+        val dash = PathEffect.dashPathEffect(floatArrayOf(9f, 9f))
+
+        // Zustieg — schematisch, deshalb gestrichelt
+        drawLine(Palette.TextLow, Offset(0f, yBase), Offset(x1, yIn), strokeWidth = 3f, pathEffect = dash)
+        // Die Wand — die einzige belegte Strecke, deshalb durchgezogen und farbig
+        drawLine(gradeColor, Offset(x1, yIn), Offset(x2, yTop), strokeWidth = 6f)
+        drawCircle(gradeColor, radius = 6f, center = Offset(x1, yIn))
+        drawCircle(gradeColor, radius = 6f, center = Offset(x2, yTop))
+        // Abstieg
+        drawLine(Palette.TextLow, Offset(x2, yTop), Offset(w, yBase), strokeWidth = 3f, pathEffect = dash)
+
+        val small = TextStyle(fontSize = 10.sp, color = Palette.TextLow)
+        drawText(measurer, "${route.startAlt} m", Offset(x1 + 8f, yIn - 4f), small)
+        // Links unterhalb des Gipfelpunkts — oberhalb ist bei flachen Karten kein Platz,
+        // und auf dem Punkt selbst klebte das Label im ersten Wurf
+        drawText(measurer, "$topAlt m", Offset((x2 - 78f).coerceAtLeast(0f), yTop + 8f), small)
+
+        fun min(v: Int) = if (v > 0) "$v min" else "—"
+        drawText(measurer, min(route.approachMin), Offset(x1 / 2 - 20f, h - 16f), small)
+        drawText(
+            measurer, "${route.climbMeters} Hm · ${min(route.ferrataMin)}",
+            Offset((x1 + x2) / 2 - 45f, h - 16f),
+            TextStyle(fontSize = 10.sp, color = gradeColor)
+        )
+        drawText(measurer, min(route.descentMin), Offset((x2 + w) / 2 - 20f, h - 16f), small)
+    }
+}
+
+/** Eine eingetragene Begehung — mit Foto, falls eines dazugehört. */
+@Composable
+private fun AscentRow(a: Ascent, onRemove: () -> Unit) {
+    FfCard(padding = 14.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Palette.Sky.copy(alpha = 0.13f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    a.grade,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Palette.Sky, fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    a.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Palette.TextHigh, fontWeight = FontWeight.Bold
+                )
+                Text(
+                    buildList {
+                        add(
+                            java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.GERMAN)
+                                .format(java.util.Date(a.date))
+                        )
+                        if (a.climbMeters > 0) add("${a.climbMeters} Hm")
+                        add("${TourLoad.label(TourLoad.score(a))}")
+                        if (a.turnedBack) add("umgekehrt")
+                    }.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall, color = Palette.TextLow
+                )
+            }
+            TextButton(onClick = onRemove) {
+                Text("löschen", color = Palette.TextLow, style = MaterialTheme.typography.labelMedium)
+            }
+        }
+
+        // Das Foto liegt verkleinert im App-Ordner; fürs Listenbild reicht ein
+        // weiter heruntergerechnetes Exemplar — vier Kacheln teilen sich sonst
+        // den Speicher eines ganzen Bildschirms.
+        if (a.photoPath.isNotBlank()) {
+            val thumb = remember(a.photoPath) {
+                runCatching {
+                    android.graphics.BitmapFactory.decodeFile(
+                        a.photoPath,
+                        android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
+                    )?.asImageBitmap()
+                }.getOrNull()
+            }
+            thumb?.let {
+                Spacer(Modifier.height(10.dp))
+                Image(
+                    bitmap = it,
+                    contentDescription = "Foto: ${a.name}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                )
+            }
         }
     }
 }
@@ -403,6 +587,11 @@ private fun RouteCard(
                     }
                     if (route.hasExit) Pill("Notausstieg", Palette.Emerald)
                     if (route.familyFriendly) Pill("familientauglich", Palette.Sky)
+                }
+
+                if (route.climbMeters > 0 && route.startAlt > 0) {
+                    Spacer(Modifier.height(12.dp))
+                    DayProfile(route)
                 }
 
                 if (route.summary.isNotBlank()) {

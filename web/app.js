@@ -14,7 +14,7 @@ import { FERRATAS, ferrataById, ferrataRegions } from './ferratas.js';
 import { GEO_BOUNDS, GEO_POINTS, GEO_OUTLINE, GEO_LANDMARKS } from './ferrageo.js';
 
 const STORAGE_KEY = 'ferratafit.v1';
-const APP_VERSION = '1.9';
+const APP_VERSION = '1.10';
 
 const DEFAULT_STATE = {
   profile: {
@@ -1284,6 +1284,7 @@ function routeCard(r, fit) {
           ${r.hasExit ? '<span class="pill emerald">Notausstieg</span>' : ''}
           ${r.familyFriendly ? '<span class="pill sky">familientauglich</span>' : ''}
         </div>
+        ${dayProfileSvg(r)}
         ${r.summary ? `<p class="muted" style="font-size:13px">${esc(r.summary)}</p>` : ''}
         ${detailBlock('Zustieg', r.approach)}
         ${detailBlock('Abstieg', r.descent)}
@@ -1301,6 +1302,47 @@ function routeCard(r, fit) {
               esc(u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0])}</a>`).join(' ')}</p>` : ''}
       </div>` : ''}
   </div>`;
+}
+
+/**
+ * Die Tagesskizze: Zustieg, Wand, Abstieg.
+ *
+ * Bewusst „Skizze" und nicht „Profil": Belegt sind nur Einstiegshöhe, Ausstiegshöhe
+ * und die drei Zeiten. Zustieg und Abstieg sind gestrichelt — ihre Form ist
+ * schematisch, nur die Wand dazwischen ist echte Angabe.
+ */
+function dayProfileSvg(r) {
+  if (!r.climbMeters || !r.startAlt) return '';
+  const topAlt = Math.max(r.summitAlt || 0, r.startAlt + r.climbMeters);
+  const [za, fe] = FE.daySegments(r.approachMin, r.ferrataMin, r.descentMin);
+  const gi = FE.gradeIndex(r.grade);
+  const color = gi <= 1 ? 'var(--emerald)' : gi === 2 ? 'var(--sky)' : gi === 3 ? 'var(--amber)' : 'var(--rose)';
+
+  const W = 640, H = 120;
+  const yBase = H * 0.78, yIn = H * 0.62, yTop = H * 0.10;
+  const x1 = W * za, x2 = W * (za + fe);
+  const min = (v) => (v > 0 ? `${v} min` : '—');
+
+  return `
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;margin-top:12px" role="img"
+       aria-label="Tagesskizze: Zustieg, Klettersteig, Abstieg">
+    <line x1="0" y1="${yBase}" x2="${x1}" y2="${yIn}" stroke="var(--text-low)"
+      stroke-width="2" stroke-dasharray="6 6"/>
+    <line x1="${x1}" y1="${yIn}" x2="${x2}" y2="${yTop}" stroke="${color}" stroke-width="4"/>
+    <circle cx="${x1}" cy="${yIn}" r="4.5" fill="${color}"/>
+    <circle cx="${x2}" cy="${yTop}" r="4.5" fill="${color}"/>
+    <line x1="${x2}" y1="${yTop}" x2="${W}" y2="${yBase}" stroke="var(--text-low)"
+      stroke-width="2" stroke-dasharray="6 6"/>
+    <text x="${x1 + 8}" y="${yIn - 6}" font-size="13" fill="var(--text-low)">${r.startAlt} m</text>
+    <text x="${Math.max(x2 - 55, 4)}" y="${Math.max(yTop - 8, 12)}" font-size="13"
+      fill="var(--text-low)">${topAlt} m</text>
+    <text x="${x1 / 2}" y="${H - 6}" font-size="13" fill="var(--text-low)"
+      text-anchor="middle">${min(r.approachMin)}</text>
+    <text x="${(x1 + x2) / 2}" y="${H - 6}" font-size="13" fill="${color}"
+      text-anchor="middle">${r.climbMeters} Hm · ${min(r.ferrataMin)}</text>
+    <text x="${(x2 + W) / 2}" y="${H - 6}" font-size="13" fill="var(--text-low)"
+      text-anchor="middle">${min(r.descentMin)}</text>
+  </svg>`;
 }
 
 function detailBlock(label, text) {

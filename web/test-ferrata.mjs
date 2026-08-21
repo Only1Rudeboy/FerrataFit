@@ -101,6 +101,16 @@ ok('keine versicherten Wanderwege im Katalog',
 ok('byId findet einen Steig', ferrataById(FERRATAS[0].id).name === FERRATAS[0].name);
 ok('Gebiete sind abgeleitet', ferrataRegions.length > 5);
 
+console.log('\nTagesskizze');
+// Dieselben Werte prüft FerrataTest in Kotlin — die Skizze muss auf beiden
+// Plattformen dieselben Anteile zeichnen.
+const seg = F.daySegments(90, 120, 90);
+ok('Anteile summieren auf 1', Math.abs(seg[0] + seg[1] + seg[2] - 1) < 1e-6);
+ok('Steig ist der größte Abschnitt', seg[1] > seg[0] && seg[1] > seg[2]);
+ok('ohne Zeiten: Drittel', F.daySegments(0, 0, 0).every((f) => Math.abs(f - 1 / 3) < 1e-6));
+ok('Mini-Zustieg bleibt sichtbar', F.daySegments(5, 300, 60)[0] >= 0.1,
+  `war ${F.daySegments(5, 300, 60)[0]}`);
+
 console.log('\nKartendaten');
 const { GEO_POINTS, GEO_OUTLINE, GEO_BOUNDS, GEO_LANDMARKS } = await import('./ferrageo.js');
 ok('jeder Steig hat genau einen Punkt',

@@ -364,6 +364,28 @@ object Ferrata {
     }
 
     /**
+     * Zeitanteile Zustieg / Steig / Abstieg für die Tagesskizze — normiert auf 1.
+     *
+     * Fehlen die Zeiten, fällt die Skizze auf ein Drittel je Abschnitt zurück, statt
+     * gar nicht zu erscheinen: Die Form der Skizze trägt auch ohne exakte Anteile.
+     */
+    fun daySegments(approachMin: Int, ferrataMin: Int, descentMin: Int): Triple<Float, Float, Float> {
+        val total = approachMin + ferrataMin + descentMin
+        if (total <= 0) return Triple(1f / 3f, 1f / 3f, 1f / 3f)
+        // Kein Abschnitt unter 12 Prozent: Ein Fünf-Minuten-Zustieg wäre sonst ein
+        // unsichtbarer Strich, und die Skizze soll lesbar sein, nicht maßstabsgetreu.
+        val raw = floatArrayOf(
+            approachMin.toFloat() / total,
+            ferrataMin.toFloat() / total,
+            descentMin.toFloat() / total
+        )
+        val min = 0.12f
+        for (i in raw.indices) if (raw[i] < min) raw[i] = min
+        val sum = raw[0] + raw[1] + raw[2]
+        return Triple(raw[0] / sum, raw[1] / sum, raw[2] / sum)
+    }
+
+    /**
      * Der Fußtext unter jeder Routenliste. Er steht dort immer, nicht nur beim ersten Mal.
      */
     const val DISCLAIMER =

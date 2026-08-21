@@ -180,5 +180,7 @@ data class AppState(
     /** Echte Begehungen am Fels. */
     val ascents: List<Ascent> = emptyList(),
     /** Routen, die als Ziel vorgemerkt wurden. */
-    val plannedRouteIds: Set<String> = emptySet()
+    val plannedRouteIds: Set<String> = emptySet(),
+    /** Wann zuletzt automatisch nach Documents gesichert wurde. */
+    val lastBackupAt: Long = 0L
 )
